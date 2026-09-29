@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brainrot Goon Machine 9000</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body class="lang-caveman">
+
+<header class="top">
+  <div class="brand">
+    <span class="brain-ico" id="brandIco" aria-hidden="true">🧠</span>
+    <div>
+      <h1 class="wobble"><span data-t="title_main">BRAINROT GOON MACHINE</span> <span class="nine" data-t="title_num">9000</span></h1>
+      <p class="tag" id="hello">helo me cum brain rot vidas me give here</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <div class="topbtns">
+      <button class="topbtn" id="langBtn" type="button"><span id="langBtnTxt">Niba</span> ▾</button>
+      <button class="topbtn brainbtn" id="brainBtn" type="button"><i class="dot" id="brainDot"></i><span data-t="brain_btn">ME BRAIN</span></button>
+    </div>
+    <div class="chips">
+      <span class="chip" id="chipCave">cave: 0 rot</span>
+      <span class="chip" id="chipSeen">seen: 0</span>
+      <span class="chip" id="chipBrain">brain: ???</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- update banner: only shows when a new version is out -->
+  <div class="banner upd" id="updBanner" hidden>
+    <span class="banner-txt" id="updTxt"></span>
+    <div class="bar updbar" id="updBarWrap" hidden><i id="updBar"></i></div>
+    <div class="row tight" id="updBtns">
+      <button class="mini ghost" id="updSkip" type="button" data-t="upd_skip">skip dis version</button>
+      <button class="mini ghost" id="updLater" type="button" data-t="upd_later">later</button>
+      <button class="mini" id="updNow" type="button" data-t="upd_now">UPDATE ME</button>
+    </div>
+  </div>
+
+  <!-- first-run tools download: only shows while tools are missing / downloading -->
+  <div class="banner tools" id="toolsBanner" hidden>
+    <span class="banner-txt" id="toolsTxt"></span>
+    <div class="toolbars" id="toolBars"></div>
+    <button class="mini" id="toolsRetry" type="button" data-t="tools_retry" hidden>try again</button>
+  </div>
+
+  <!-- brain problem banner: only shows when brain not ready -->
+  <div class="banner" id="banner" hidden>
+    <span class="banner-txt" id="bannerTxt"></span>
+    <button class="mini" id="bannerFix" type="button" data-t="banner_fix">fix in ME BRAIN</button>
+  </div>
+
+  <!-- 1. HUNT -->
+  <section class="card hunt">
+    <h2 data-t="hunt_h">WAT ROT U WANT</h2>
+    <div class="huntbar">
+      <div class="field grow">
+        <label for="query" data-t="query_label">rot words (comma for many)</label>
+        <input id="query" type="text" data-tp="query_ph" placeholder="brainrot, skibidi, sigma edit, cursed memes" autocomplete="off">
+      </div>
+      <div class="field countf">
+        <label for="count" data-t="count_label">how many rot vidas me get</label>
+        <input id="count" type="number" min="1" max="500" value="10">
+      </div>
+      <button id="goBtn" class="go" type="button" data-t="go">START GOONING</button>
+    </div>
+
+    <button class="linkish" id="linksToggle" type="button" aria-expanded="false">
+      <span class="plus" id="linksPlus">+</span> <span data-t="links_toggle">or giv me da links</span>
+    </button>
+    <div class="linksbox" id="linksBox" hidden>
+      <label for="links" data-t="links_help">yt channel/shorts, tiktok, reels, playlist. one per line</label>
+      <textarea id="links" rows="3" placeholder="https://www.youtube.com/@somechannel/shorts&#10;https://www.tiktok.com/@someone"></textarea>
+    </div>
+
+    <div class="prog" id="prog" hidden>
+      <div class="prog-top">
+        <span id="progStep">me sleep. zzz</span>
+        <span id="progCount">0 / 0 rot</span>
+      </div>
+      <div class="bar"><i id="progBar"></i></div>
+      <div class="prog-title" id="progTitle"></div>
+    </div>
+  </section>
+
+  <!-- 2. THOUGHTS -->
+  <section class="card logcard">
+    <div class="cardhead">
+      <h2 data-t="thoughts_h">ME THOUGHTS</h2>
+      <div class="row tight">
+        <button class="mini ghost" id="copyLog" type="button" data-t="copy_log">copy thoughts</button>
+        <button class="mini ghost" id="logToggle" type="button" data-t="log_more">show all</button>
+        <button class="mini ghost" id="clearLog" type="button" data-t="clear_log">forget thoughts</button>
+      </div>
+    </div>
+    <ol class="log small" id="log"></ol>
+  </section>
+
+  <!-- 3. CAVE -->
+  <section class="card cavecard">
+    <div class="cardhead">
+      <h2 data-t="cave_h">DA GOON CAVE</h2>
+      <div class="row tight wrapr">
+        <select id="sort" aria-label="sort">
+          <option value="new" data-t="sort_new">newest rot</option>
+          <option value="score" data-t="sort_score">most rot</option>
+        </select>
+        <button class="mini" id="doomBtn" type="button" data-t="doom">DOOMSCROLL</button>
+        <button class="mini ghost" id="caveBtn" type="button" data-t="open_folder">open folder</button>
+      </div>
+    </div>
+    <div class="cave" id="cave"><p class="empty" data-t="empty">cave empty. no rot yet. sad.</p></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span id="verTxt">version 0.0.0</span> ·
+  <button class="linkish" id="updCheck" type="button" data-t="upd_check">check for update</button>
+  <span id="updMsg"></span>
+</footer>
+
+<!-- ============ LEAVE PROMPT (current champion guilt-trips you) ============ -->
+<div class="war" id="leave" hidden>
+  <div class="war-box leave-box">
+    <div class="avatar big" id="lvAv"></div>
+    <b class="cname" id="lvName"></b>
+    <small id="lvTitle"></small>
+    <p class="bubble static" id="lvText"></p>
+    <div class="war-btns">
+      <button class="mini ghost" id="lvNo" type="button"></button>
+      <button class="go small" id="lvYes" type="button"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LANGUAGE WAR ============ -->
+<div class="war" id="war" hidden>
+  <div class="war-box" id="warBox">
+    <div class="sigflash" id="sigFlash" hidden></div>
+    <h2 class="war-title" id="warTitle">WORD WAR</h2>
+    <div class="arena" id="arena">
+      <div class="fighter" id="fL">
+        <div class="hp"><i id="hpL"></i></div>
+        <div class="avatar" id="avL"></div>
+        <b class="cname" id="nmL"></b>
+        <small id="tlL"></small>
+        <span class="dmgpop" id="dpL"></span>
+        <span class="ko" id="koL" hidden></span>
+      </div>
+      <div class="vs" id="warVs">VS</div>
+      <div class="fighter" id="fR">
+        <div class="hp"><i id="hpR"></i></div>
+        <div class="avatar" id="avR"></div>
+        <b class="cname" id="nmR"></b>
+        <small id="tlR"></small>
+        <span class="dmgpop" id="dpR"></span>
+        <span class="ko" id="koR" hidden></span>
+      </div>
+      <span class="projectile" id="proj" hidden></span>
+    </div>
+    <div class="speech" id="speech"><span class="who" id="spWho"></span><span id="spText"></span></div>
+    <div class="war-result" id="warResult" hidden></div>
+    <div class="war-btns">
+      <button class="mini ghost" id="warSkip" type="button">skip</button>
+      <button class="go small" id="warOk" type="button" hidden>ok</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<!-- ============ BRAIN DRAWER ============ -->
+<aside class="drawer" id="brainDrawer" hidden aria-labelledby="brainH">
+  <div class="drawer-head">
+    <h2 id="brainH" data-t="brain_h">ME BRAIN</h2>
+    <span class="pill" id="brainPill" data-t="pill_checking">checking...</span>
+    <button class="xbtn" type="button" data-close data-tt="close" title="close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="alert" id="brainAlert" hidden></div>
+    <div class="hwline" id="hwLine" data-t="hw_looking">me look at ur pc...</div>
+
+    <fieldset class="places">
+      <legend data-t="place_legend">brain place</legend>
+      <label class="place"><input type="radio" name="backend" value="auto"><span data-t="place_auto">auto (me pick)</span></label>
+      <label class="place"><input type="radio" name="backend" value="ollama"><span data-t="place_ollama">local (ur pc, free)</span></label>
+      <label class="place"><input type="radio" name="backend" value="gemini"><span data-t="place_gemini">google gemini (free key)</span></label>
+    </fieldset>
+
+    <div class="group" data-for="auto ollama">
+      <label for="ollama_model"><span data-t="ollama_model_label">local brain model</span> <small data-t="ollama_model_small">(empty = me pick for ur pc)</small></label>
+      <div class="row tight">
+        <input id="ollama_model" type="text" placeholder="qwen3-vl:8b-instruct">
+        <button class="mini" id="pullBtn" type="button" hidden data-t="pull_btn">download brain</button>
+      </div>
+    </div>
+
+    <div class="group" data-for="auto gemini">
+      <label for="gemini_key"><span data-t="gemini_key_label">google key</span> <small data-th="gemini_key_small_html">free at aistudio.google.com, no card</small></label>
+      <div class="row tight">
+        <input id="gemini_key" type="password" autocomplete="off">
+        <button class="mini ghost" id="clearKey" type="button" data-t="forget">forget</button>
+      </div>
+      <label for="gemini_model" data-t="gemini_model_label">google brain model</label>
+      <input id="gemini_model" type="text" placeholder="gemini-3.5-flash-lite">
+    </div>
+
+    <fieldset class="places srcs">
+      <legend><span data-t="src_legend">where me search</span> <small data-t="src_note"></small></legend>
+      <label class="place"><input type="radio" name="source_mode" value="only"><span data-t="mode_only">TikTok + Insta only</span></label>
+      <label class="place"><input type="radio" name="source_mode" value="first"><span data-t="mode_first">TikTok + Insta first, YouTube if not enuf</span></label>
+      <label class="place"><input type="radio" name="source_mode" value="mix"><span data-t="mode_mix">mix all (YouTube too)</span></label>
+    </fieldset>
+
+    <div class="group">
+      <label for="threshold" id="thLabel">how rot is rot enuf: <b>6</b>/10</label>
+      <input id="threshold" type="range" min="0" max="10" step="1">
+    </div>
+
+    <label class="check"><input type="checkbox" id="chill_cpu"><span data-t="chill_label">go easy on me pc (bit slower, pc stay smooth)</span></label>
+
+    <details class="more">
+      <summary data-t="more_toggle">more brain stuff</summary>
+      <div class="row two">
+        <div class="field">
+          <label for="max_secs" data-t="max_secs_label">max vida long (secs)</label>
+          <input id="max_secs" type="number" min="5" max="1800">
+        </div>
+        <div class="field">
+          <label for="cookies_browser"><span data-t="cookies_label">cookies from browser</span> <small data-t="cookies_small">(for tiktok/insta)</small></label>
+          <select id="cookies_browser">
+            <option value="none" data-t="cookies_none">none</option>
+            <option value="firefox">firefox</option>
+            <option value="edge">edge</option>
+            <option value="chrome">chrome</option>
+            <option value="brave">brave</option>
+            <option value="opera">opera</option>
+            <option value="vivaldi">vivaldi</option>
+          </select>
+        </div>
+      </div>
+      <label for="cookieFile" data-t="cookies_file_label">or give me cookies.txt</label>
+      <div class="row tight">
+        <input type="file" id="cookieFile" accept=".txt,text/plain">
+        <button class="mini ghost" id="cookieClear" type="button" data-t="forget">forget</button>
+      </div>
+      <small class="cookie-status" id="cookieStatus"></small>
+      <small class="cookie-how" data-t="cookies_how"></small>
+      <div class="row two">
+        <label class="check"><input type="checkbox" id="ear_mode"><span><span data-t="ear_label">ear mode (me listen wit whisper)</span> <small data-t="ear_note">(first use download ~80-500MB)</small></span></label>
+        <div class="field">
+          <label for="whisper_size" data-t="ear_size">ear size</label>
+          <select id="whisper_size">
+            <option value="auto" data-t="ear_auto">auto</option>
+            <option value="tiny" data-t="ear_tiny">tiny (fast)</option>
+            <option value="base" data-t="ear_base">base</option>
+            <option value="small" data-t="ear_small">small (smart, slow)</option>
+          </select>
+        </div>
+      </div>
+      <label for="taste"><span data-t="taste_label">wat rot u like most</span> <small data-t="taste_small">(tell brain ur taste)</small></label>
+      <textarea id="taste" rows="2" data-tp="taste_ph" placeholder="italian AI animals, loud bass boosted edits, no reddit stories"></textarea>
+      <label for="cave_dir" data-t="cave_dir_label">goon cave folder</label>
+      <input id="cave_dir" type="text">
+      <label class="check"><input type="checkbox" id="keep_rejects"><span data-t="keep_rejects">keep normal vidas too (in _nope folder)</span></label>
+    </details>
+  </div>
+  <div class="drawer-foot">
+    <button class="go small" id="saveBtn" type="button" data-t="save_btn">SAVE BRAIN</button>
+  </div>
+</aside>
+
+<!-- ============ LANGUAGE DRAWER ============ -->
+<aside class="drawer" id="langDrawer" hidden aria-labelledby="langH">
+  <div class="drawer-head">
+    <h2 id="langH" data-t="lang_h">ME TALK HOW</h2>
+    <button class="xbtn" type="button" data-close data-tt="close" title="close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="langs" id="langs"></div>
+    <section class="lore" id="lore">
+      <img class="lore-pic" id="lorePic" alt="" hidden>
+      <h3 id="loreTitle"></h3>
+      <p class="lore-intro" id="loreIntro"></p>
+      <ul id="loreFacts"></ul>
+      <p class="lore-foot" id="loreFoot"></p>
+    </section>
+  </div>
+</aside>
+
+<!-- ============ DOOMSCROLL ============ -->
+<div class="doom" id="doom" hidden>
+  <button class="doom-x" id="doomX" type="button" aria-label="close">✕</button>
+  <button class="doom-nav" id="doomUp" type="button" aria-label="previous">▲</button>
+  <div class="doom-stage">
+    <video id="doomVid" playsinline loop autoplay></video>
+    <div class="doom-info">
+      <span class="lvl" id="doomLvl"></span>
+      <b id="doomTitle"></b>
+      <span id="doomWhy"></span>
+    </div>
+  </div>
+  <button class="doom-nav" id="doomDown" type="button" aria-label="next">▼</button>
+  <p class="doom-hint" data-t="doom_hint">scroll or ↑ ↓ to goon more. esc to escape</p>
+</div>
+
+<script src="/web/app.js"></script>
+</body>
+</html>
