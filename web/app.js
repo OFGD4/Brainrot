@@ -226,6 +226,8 @@ function showStats(s) {
   const seen = Object.values(s).reduce((a, b) => a + b, 0);
   $("chipCave").textContent = t("chip_cave", { n: kept });
   $("chipSeen").textContent = t("chip_seen", { n: seen });
+  $("chipAi").textContent = t("chip_ai", { n: s.ai || 0 });
+  $("chipAi").title = t("noai_note");
 }
 
 function showHw(h) {
@@ -259,6 +261,7 @@ function showPlaceGroups() {
   document.querySelectorAll(".group[data-for]").forEach((g) => {
     g.hidden = !g.dataset.for.split(" ").includes(b);
   });
+  $("teamNote").hidden = !(b === "both" || b === "auto");
 }
 
 function readConfig() {
@@ -291,9 +294,7 @@ async function checkBrain() {
   showBrain(st);
 }
 
-function showBrain(st) {
-  const pill = $("brainPill"), dot = $("brainDot"), alert = $("brainAlert"), banner = $("banner");
-  $("chipBrain").textContent = t("chip_brain", { b: st.label || "???" });
+function brainMsg(st) {
   let cls = "bad", pillKey = "pill_confused", msg = esc(st.error || st.state);
   const ai = linkHtml("https://aistudio.google.com/apikey", "aistudio.google.com/apikey");
   switch (st.state) {
@@ -311,10 +312,23 @@ function showBrain(st) {
     case "bad_key": pillKey = "pill_bad_key"; msg = esc(t("alert_bad_key", { err: st.error || "" })); break;
     case "bad_model": pillKey = "pill_bad_model"; msg = t("alert_bad_model_html", { model: esc(st.model) }); break;
   }
+  return [cls, pillKey, msg];
+}
+
+function showBrain(st) {
+  const pill = $("brainPill"), dot = $("brainDot"), alert = $("brainAlert"), banner = $("banner");
+  $("chipBrain").textContent = t("chip_brain", { b: st.label || "???" });
+  let [cls, pillKey, msg] = brainMsg(st);
+  if (st.team && st.state === "ready" && st.other) {   // tag team, but only 1 brain works
+    const o = brainMsg(st.other);
+    cls = "warn"; pillKey = "pill_half";
+    msg = t("alert_half_html", { brain: esc(st.backend === "gemini" ? "Gemini" : st.label || ""), msg: o[2] });
+    if (st.other.state === "no_model") $("pullBtn").hidden = false;
+  }
   pill.className = "pill " + cls; pill.textContent = t(pillKey);
   dot.className = "dot " + cls;
   alert.hidden = !msg; alert.innerHTML = msg;
-  $("pullBtn").hidden = st.state !== "no_model";
+  $("pullBtn").hidden = st.state !== "no_model" && !(st.other && st.other.state === "no_model");
   // banner on main page so nobody has to dig for it
   banner.hidden = !msg;
   banner.className = "banner " + (cls === "warn" ? "warn" : "");
@@ -380,7 +394,11 @@ async function go() {
     if (stopping) return;                      // already asked; don't spam
     stopping = true;
     $("goBtn").textContent = t("stopping_btn"); $("goBtn").disabled = true;
-    await api("/api/stop", {}); addLocal(t("msg_stopping"), "warn"); return;
+    let r = {};
+    try { r = await api("/api/stop", {}); } catch (e) {}
+    if (!r.running) { setRunning(false); }   // stopped for real, right now
+    poll();
+    return;
   }
   const query = $("query").value.trim();
   const links = $("links").value.trim();

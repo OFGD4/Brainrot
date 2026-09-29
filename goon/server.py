@@ -117,7 +117,7 @@ def create_app(cfg, db, engine, hw, updater):
 
     @app.post("/api/update/install")
     def update_install():
-        ok = updater.install(before_exit=engine.stop.set)
+        ok = updater.install(before_exit=engine.request_stop)
         return {"ok": ok, **updater.public()}
 
     @app.get("/api/config")
@@ -145,7 +145,6 @@ def create_app(cfg, db, engine, hw, updater):
 
         def go():
             pull_state["running"] = True
-            engine.stop.clear()
             try:
                 b = engine._ollama()
                 if not b.alive():
@@ -153,7 +152,7 @@ def create_app(cfg, db, engine, hw, updater):
                     if not b.try_start():
                         engine.log("no_ollama", "bad")
                         return
-                engine.prepare_brain(b)
+                engine.prepare_brain(b, threading.Event())
             except BrainError as e:
                 engine.log("brain_fail", "bad", err=str(e))
             except Exception as e:
@@ -172,8 +171,11 @@ def create_app(cfg, db, engine, hw, updater):
 
     @app.post("/api/stop")
     def stop():
-        engine.stop.set()
-        return {"ok": True}
+        engine.request_stop()
+        t0 = time.time()                       # the engine walks away from slow stuff in <0.2s
+        while engine.running and time.time() - t0 < 1.5:
+            time.sleep(0.03)
+        return {"ok": True, "running": engine.running}
 
     @app.get("/api/vids")
     def vids():

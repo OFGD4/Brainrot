@@ -25,6 +25,7 @@
     <div class="chips">
       <span class="chip" id="chipCave">cave: 0 rot</span>
       <span class="chip" id="chipSeen">seen: 0</span>
+      <span class="chip noai" id="chipAi" title="">🚫🤖 0</span>
       <span class="chip" id="chipBrain">brain: ???</span>
     </div>
   </div>
@@ -69,6 +70,7 @@
       </div>
       <button id="goBtn" class="go" type="button" data-t="go">START GOONING</button>
     </div>
+    <p class="noai-note" data-t="noai_note">🚫🤖 no AI slop: AI vidas + AI accounts get yeeted</p>
 
     <button class="linkish" id="linksToggle" type="button" aria-expanded="false">
       <span class="plus" id="linksPlus">+</span> <span data-t="links_toggle">or giv me da links</span>
@@ -188,11 +190,12 @@
     <fieldset class="places">
       <legend data-t="place_legend">brain place</legend>
       <label class="place"><input type="radio" name="backend" value="auto"><span data-t="place_auto">auto (me pick)</span></label>
+      <label class="place"><input type="radio" name="backend" value="both"><span data-t="place_both">tag team: google + local</span></label>
       <label class="place"><input type="radio" name="backend" value="ollama"><span data-t="place_ollama">local (ur pc, free)</span></label>
       <label class="place"><input type="radio" name="backend" value="gemini"><span data-t="place_gemini">google gemini (free key)</span></label>
     </fieldset>
 
-    <div class="group" data-for="auto ollama">
+    <div class="group" data-for="auto ollama both">
       <label for="ollama_model"><span data-t="ollama_model_label">local brain model</span> <small data-t="ollama_model_small">(empty = me pick for ur pc)</small></label>
       <div class="row tight">
         <input id="ollama_model" type="text" placeholder="qwen3-vl:8b-instruct">
@@ -200,7 +203,7 @@
       </div>
     </div>
 
-    <div class="group" data-for="auto gemini">
+    <div class="group" data-for="auto gemini both">
       <label for="gemini_key"><span data-t="gemini_key_label">google key</span> <small data-th="gemini_key_small_html">free at aistudio.google.com, no card</small></label>
       <div class="row tight">
         <input id="gemini_key" type="password" autocomplete="off">
@@ -209,6 +212,8 @@
       <label for="gemini_model" data-t="gemini_model_label">google brain model</label>
       <input id="gemini_model" type="text" placeholder="gemini-3.5-flash-lite">
     </div>
+
+    <p class="small-note" id="teamNote" data-t="team_note" hidden></p>
 
     <fieldset class="places srcs">
       <legend><span data-t="src_legend">where me search</span> <small data-t="src_note"></small></legend>

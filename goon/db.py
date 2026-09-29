@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS vids (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key TEXT UNIQUE,            -- extractor:id
     url TEXT, title TEXT, uploader TEXT, duration REAL,
-    status TEXT,                -- kept | nope | dupe | fail
+    status TEXT,                -- kept | nope | dupe | fail | ai | yeeted
     score INTEGER, vibe TEXT, why TEXT,
     path TEXT, thumb TEXT, dupe_of INTEGER,
     query TEXT, brain TEXT,
@@ -21,7 +21,12 @@ CREATE TABLE IF NOT EXISTS hashes (
     vid INTEGER, h INTEGER
 );
 CREATE INDEX IF NOT EXISTS hashes_vid ON hashes(vid);
+CREATE TABLE IF NOT EXISTS ai_users (   -- accounts caught posting AI stuff
+    who TEXT PRIMARY KEY,       -- site:name (lowercase)
+    strikes INTEGER, why TEXT, created REAL
+);
 """
+AI_BLOCK_AT = 2   # strikes: sure-thing AI (tags/labels/names) = 2 at once, AI judge "maybe" = 1
 
 
 class DB:
@@ -33,6 +38,35 @@ class DB:
         self.con.executescript(SCHEMA)
         self.con.commit()
         self._hash_cache = None  # (vid ids array, hashes array)
+        self._blocked = {r[0] for r in self.con.execute(
+            "SELECT who FROM ai_users WHERE strikes >= ?", (AI_BLOCK_AT,))}
+
+    # ------------------------------------------------------ AI accounts --
+    @staticmethod
+    def _who(site, user):
+        return f"{(site or '').lower()}:{(user or '').strip().lstrip('@').lower()}"
+
+    def ai_blocked(self, site, user) -> bool:
+        return bool(user) and self._who(site, user) in self._blocked
+
+    def ai_strike(self, site, user, n=1, why="") -> bool:
+        """Count AI videos per account. Returns True when the account just got blocked."""
+        if not user:
+            return False
+        who = self._who(site, user)
+        with self.lock:
+            r = self.con.execute("SELECT strikes FROM ai_users WHERE who=?", (who,)).fetchone()
+            strikes = (r[0] if r else 0) + n
+            self.con.execute("INSERT OR REPLACE INTO ai_users (who, strikes, why, created) "
+                             "VALUES (?, ?, ?, ?)", (who, strikes, why[:120], time.time()))
+            self.con.commit()
+        if strikes >= AI_BLOCK_AT and who not in self._blocked:
+            self._blocked.add(who)
+            return True
+        return False
+
+    def ai_blocked_count(self) -> int:
+        return len(self._blocked)
 
     def seen(self, key: str) -> bool:
         with self.lock:

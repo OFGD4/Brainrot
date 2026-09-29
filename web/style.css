@@ -427,3 +427,8 @@ input[type=file] { color: var(--dim); font-size: 12px; max-width: 100%; }
 .site-instagram { background: linear-gradient(45deg, #f58529, #dd2a7b, #8134af) !important; }
 .site-youtube { background: #c00 !important; }
 .srcs .place { font-size: 13px; padding: 8px 12px; }
+
+/* no-AI note + tag team note */
+.noai-note { margin: 8px 0 0; font-size: 12px; color: var(--dim); }
+.chip.noai { color: var(--a1); }
+.small-note { margin: -4px 0 10px; font-size: 12px; color: var(--dim); line-height: 1.4; }

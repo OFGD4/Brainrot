@@ -3,3 +3,4 @@ flask>=3.0
 requests>=2.31
 numpy
 psutil
+curl_cffi>=0.10,<0.17   # looks like Chrome: TikTok/tikwm/Insta say 403 to plain Python

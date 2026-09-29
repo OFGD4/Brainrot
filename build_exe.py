@@ -41,8 +41,17 @@ def main():
         "--icon", "icon.ico",
         "--add-data", f"web{sep}web",
         "--collect-all", "yt_dlp_ejs",
+        "--collect-all", "curl_cffi",          # Chrome look-alike HTTP (TikTok 403 fix)
+        "--hidden-import", "_cffi_backend",
         "--collect-submodules", "webview",
     ]
+    # Windows curl_cffi keeps its libcurl DLL next to the package (delvewheel "curl_cffi.libs")
+    import importlib.util
+    spec = importlib.util.find_spec("curl_cffi")
+    if spec and spec.origin:
+        libs = Path(spec.origin).parent.parent / "curl_cffi.libs"
+        if libs.is_dir():
+            args += ["--add-binary", f"{libs}{sep}curl_cffi.libs"]
     for mod in ("pandas", "scipy", "matplotlib", "pyarrow", "IPython", "tkinter",
                 "faster_whisper", "ctranslate2", "av", "onnxruntime", "tokenizers",
                 "huggingface_hub", "imageio_ffmpeg", "deno", "PIL", "sympy"):

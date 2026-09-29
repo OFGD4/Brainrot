@@ -122,6 +122,22 @@ def selftest():
     check("deno", lambda: deno_exe() or 1 / 0)
     check("yt-dlp", lambda: tools.activate_ytdlp() + " @ " + __import__("yt_dlp").__file__)
     check("yt-dlp-ejs", lambda: __import__("yt_dlp_ejs").__file__)
+
+    def browser_http():   # TikTok / tikwm / Insta answer 403 without this
+        from goon import collect, net
+        if not net.browser_ok():
+            raise RuntimeError("curl_cffi missing")
+        return f"curl_cffi {__import__('curl_cffi').__version__}, yt-dlp impersonate: " \
+               f"{collect.impersonate_target() or 1 / 0}"
+    check("tiktok 403 fix", browser_http)
+
+    def no_ai():
+        from goon import aifilter
+        assert aifilter.check({"title": "Tralalero Tralala #brainrot"})
+        assert aifilter.check({"title": "funny cat", "uploader": "brainrot.ai"})
+        assert not aifilter.check({"title": "skibidi toilet sigma edit #fyp", "uploader": "memes"})
+        return "AI filter ok"
+    check("no AI filter", no_ai)
     check("hardware", lambda: {k: v for k, v in hwmod.detect().items() if k != "all_gpus"})
 
     def clip():
@@ -132,7 +148,9 @@ def selftest():
                         "testsrc2=size=360x640:rate=15:duration=4", "-f", "lavfi", "-i",
                         "sine=duration=4", "-shortest", "-pix_fmt", "yuv420p", str(p)],
                        check=True, creationflags=0x08000000 if os.name == "nt" else 0)
-        return (f"dur={media.duration(p):.1f}s frames={len(media.grab_frames(p, d / 'f'))} "
+        fr = media.grab_frames(p, d / 'f', width=360)
+        sheet = media.frame_sheet(fr, d / "sheet.jpg")
+        return (f"dur={media.duration(p):.1f}s frames={len(fr)} sheet={bool(sheet)} "
                 f"hashes={len(media.frame_hashes(p))} sound={media.audio_wav(p, d / 'a.wav')}")
     check("media pipeline", clip)
     print("SELFTEST", "PASS" if ok else "FAIL")
@@ -201,7 +219,7 @@ def main():
         mode = open_window(url, engine)
 
     if mode == "closed":
-        engine.stop.set()
+        engine.request_stop()
         os._exit(0)
 
     # Browser mode: quit when the page has been gone a while and nothing is running.

@@ -40,4 +40,5 @@ if errorlevel 1 (
 )
 %VPY% -m pip install -q -U pywebview >nul 2>nul
 if errorlevel 1 echo  pywebview no install. app use edge window instead. dat ok.
+copy /y requirements.txt .venv\goon-requirements.txt >nul
 exit /b 0

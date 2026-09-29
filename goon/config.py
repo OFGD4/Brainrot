@@ -5,7 +5,7 @@ from pathlib import Path
 from .paths import data_dir, default_cave
 
 DEFAULTS = {
-    "backend": "auto",          # auto | ollama | gemini
+    "backend": "auto",          # auto | both (tag team) | ollama | gemini
     "ollama_url": "http://127.0.0.1:11434",
     "ollama_model": "",         # blank = pick from hardware
     "gemini_key": "",
@@ -71,6 +71,8 @@ class Config:
             self.data["threshold"] = max(0, min(10, self.data["threshold"]))
             srcs = [x for x in str(self.data["sources"]).split(",") if x in ("youtube", "tiktok", "instagram")]
             self.data["sources"] = ",".join(srcs) or "youtube"
+            if self.data["backend"] not in ("auto", "both", "ollama", "gemini"):
+                self.data["backend"] = "auto"
             if self.data["source_mode"] not in ("only", "first", "mix"):
                 self.data["source_mode"] = "first"
             if self.data["lang"] not in LANG_CODES:

@@ -70,6 +70,26 @@ def grab_frames(path, out_dir, n=4, width=512, dur=None) -> list[Path]:
     return frames
 
 
+def frame_sheet(frames, out) -> Path | None:
+    """Glue the frames into ONE 2x2 picture. The AI reads 1 picture much faster than 4
+    (about half the pixels, a quarter of the Gemini image cost), and still sees the whole clip."""
+    frames = [Path(f) for f in frames if Path(f).exists()]
+    if len(frames) < 2:
+        return frames[0] if frames else None
+    frames = frames[:4]
+    args = ["-y"]
+    for f in frames:
+        args += ["-i", str(f)]
+    if len(frames) == 4:
+        vf = "xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0"
+    else:
+        vf = f"hstack=inputs={len(frames)}"
+    r = _ff(args + ["-filter_complex", vf, "-frames:v", "1", "-q:v", "4", str(out)], timeout=60)
+    if r.returncode == 0 and Path(out).exists() and Path(out).stat().st_size > 0:
+        return Path(out)
+    return None
+
+
 def frame_hashes(path, every=1.0, max_frames=180) -> np.ndarray:
     """64-bit dHash per sampled frame. ffmpeg does the resize, numpy does the bits."""
     r = _ff_video(["-i", str(path), "-an", "-vf", f"fps=1/{every},scale=9:8:flags=area,format=gray",
