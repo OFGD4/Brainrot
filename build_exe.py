@@ -43,6 +43,7 @@ def main():
         "--collect-all", "yt_dlp_ejs",
         "--collect-all", "curl_cffi",          # Chrome look-alike HTTP (TikTok 403 fix)
         "--hidden-import", "_cffi_backend",
+        "--hidden-import", "websockets.sync.client",   # drives the hidden Edge (TikTok search)
         "--collect-submodules", "webview",
     ]
     # Windows curl_cffi keeps its libcurl DLL next to the package (delvewheel "curl_cffi.libs")

@@ -75,8 +75,13 @@ All searches run side by side: a slow site never holds up the others.
   1. **tikwm.com** (free public TikTok search, no login). Its free limit is per internet connection: too many
      searches close together and it answers **403** for a while. So the app calls it once every 2.5s for everything,
      never retries a 403 right away, and lets it rest (20s → 45s → 90s → 180s).
-  2. **TikTok's own search** (the call tiktok.com makes). Works best with your TikTok login in cookies.txt.
-  3. Web search (DuckDuckGo, Bing backup) for TikTok videos + creators.
+  2. **TikTok in a hidden Edge**: TikTok's website only answers a real browser (it signs every search with
+     JavaScript), so the app opens the Edge that's already on your PC — hidden, no window — logs in with your
+     cookies.txt, searches like a person, and reads the results (plus each video's file link as a backup download).
+     Nothing to install. Turn off in ME BRAIN > more brain stuff if you don't want it. Closes when the run ends / STOP.
+  3. **TikTok's own search** without a browser (usually empty nowadays).
+  4. Web search (DuckDuckGo, Bing backup) for TikTok videos + creators.
+- **Long captions** (saved captions) are shortened for Instagram, which answers 404 to very long searches.
 - **TikTok downloads**: yt-dlp (as Chrome) first, so tikwm is only used for searching. tikwm's video link is the backup.
 - **TikTok 403 fix**: TikTok, tikwm (Cloudflare) and Instagram block plain Python with "403 Forbidden" by checking
   *how* it connects. The app connects exactly like Chrome (curl_cffi), for its own requests and for yt-dlp.

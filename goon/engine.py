@@ -179,6 +179,8 @@ class Engine:
     def request_stop(self):
         """STOP: everything of this run quits now; the AI stops thinking too."""
         self.stop.set()
+        from . import browser
+        threading.Thread(target=browser.shutdown, daemon=True).start()
         run = self.run
         if run is not None:
             run.halt.set()
@@ -406,6 +408,8 @@ class Engine:
             run.halt.set()
             self.step("")
             self.progress["title"] = ""
+            from . import browser
+            browser.shutdown()                    # the hidden Edge (TikTok search), if it ran
 
     def _count(self, run, key, n=1):
         with run.lock:
@@ -1075,12 +1079,14 @@ class Engine:
                      yt=t.get("site_youtube", 0))
         if t.get("gems"):
             self.log("gems_got", "good", g=t["gems"])
-        self._site_report()
+        if not self.stop.is_set():                 # (STOP pressed: half-done numbers mean nothing)
+            self._site_report()
         if self.progress["kept"] >= self.progress["target"] or self.stop.is_set() or run.end:
             return                           # (gave up: the reason was already said)
         tt_ig = t.get("site_tiktok", 0) + t.get("site_instagram", 0)
         if self.cfg["source_mode"] == "only" and tt_ig == 0 and not t["ai"]:
-            self.log("hint_ttig", "warn")
+            # have a login already? then the cause is something else: the 📊 lines say what
+            self.log("hint_ttig_ck" if collect.cookie_file() else "hint_ttig", "warn")
         elif t["found"] == 0:
             self.log("no_results", "warn")
         elif t["ai"] >= max(t["found"] // 3, 1):

@@ -138,6 +138,12 @@ def selftest():
         assert not aifilter.check({"title": "skibidi toilet sigma edit #fyp", "uploader": "memes"})
         return "AI filter ok"
     check("no AI filter", no_ai)
+
+    def hidden_browser():   # TikTok search in hidden Edge when tikwm is blocked
+        import websockets.sync.client  # noqa: F401  (needed to drive it)
+        from goon import browser
+        return browser.find_browser() or "none found (TikTok uses the other searches)"
+    check("hidden browser", hidden_browser)
     check("hardware", lambda: {k: v for k, v in hwmod.detect().items() if k != "all_gpus"})
 
     def clip():
@@ -220,6 +226,8 @@ def main():
 
     if mode == "closed":
         engine.request_stop()
+        from goon import browser
+        browser.shutdown()
         os._exit(0)
 
     # Browser mode: quit when the page has been gone a while and nothing is running.
@@ -228,6 +236,8 @@ def main():
         time.sleep(5)
         idle = time.time() - last_ping[0]
         if idle > 600 and not engine.running:
+            from goon import browser
+            browser.shutdown()
             os._exit(0)
 
 

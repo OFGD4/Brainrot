@@ -252,7 +252,7 @@ function showHw(h) {
 // --------------------------------------------------------------- config --
 const FIELDS = ["ollama_model", "gemini_model", "threshold", "max_secs", "cookies_browser",
   "whisper_size", "taste", "cave_dir", "always_search"];
-const CHECKS = ["ear_mode", "keep_rejects", "chill_cpu", "gems"];
+const CHECKS = ["ear_mode", "keep_rejects", "chill_cpu", "gems", "browser_search"];
 
 function fillConfig(c) {
   FIELDS.forEach((k) => { if ($(k)) $(k).value = c[k] ?? ""; });

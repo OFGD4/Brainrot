@@ -22,6 +22,7 @@ DEFAULTS = {
     "sources": "youtube,tiktok,instagram",  # (old setting, kept for compatibility)
     "chill_cpu": True,          # go easy on the PC: low priority, fewer threads, lighter ear mode
     "gems": True,               # hidden gems: dig creators + same sounds of good rot (no-caption vids)
+    "browser_search": True,     # TikTok search in a hidden Edge (with ur login) when tikwm is blocked
     # saved captions: one per line, ALWAYS searched too, on top of whatever words are typed
     "always_search": "今晚,V走进人群,欣赏了Vogue World: Hollywood 的现场表演。以独特时尚造型而闻名的他,这次依旧保持一贯的高级感,以一身宛如 T台造型般的时尚穿搭,展现出 effortless 的魅力。",
     "source_mode": "first",     # only = TikTok+Insta only | first = TikTok+Insta, YouTube backup | mix
