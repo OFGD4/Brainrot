@@ -175,7 +175,8 @@
     <div class="speech" id="speech"><span class="who" id="spWho"></span><span id="spText"></span></div>
     <div class="war-result" id="warResult" hidden></div>
     <div class="war-btns">
-      <button class="mini ghost" id="warSkip" type="button">skip</button>
+      <button class="mini ghost" id="warNextBtn" type="button">skip line ▶</button>
+      <button class="mini ghost" id="warSkip" type="button">skip fight ⏭</button>
       <button class="go small" id="warOk" type="button" hidden>ok</button>
     </div>
   </div>
@@ -258,7 +259,7 @@
       </div>
       <label for="cookieFile" data-t="cookies_file_label">or give me cookies.txt</label>
       <div class="row tight">
-        <input type="file" id="cookieFile" accept=".txt,text/plain">
+        <input type="file" id="cookieFile" accept=".txt,text/plain" multiple>
         <button class="mini ghost" id="cookieClear" type="button" data-t="forget">forget</button>
       </div>
       <small class="cookie-status" id="cookieStatus"></small>

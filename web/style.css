@@ -320,7 +320,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .fighter { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; min-width: 0; }
 .fighter small { color: var(--dim); font-size: 11px; }
 .fighter.talk .avatar { transform: scale(1.12) translateY(-4px); }
-.fighter.hit { animation: shake .4s; }
+.fighter.hit { animation: shake .7s; }
 .fighter.dead .avatar { filter: grayscale(1) brightness(.6); transform: rotate(90deg) translateX(10px); }
 @keyframes shake { 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
 .avatar { font-size: 64px; line-height: 1; transition: transform .2s, filter .3s; }
@@ -335,17 +335,23 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   position: absolute; top: 18px; font-family: var(--big); font-size: 26px; color: var(--red);
   text-shadow: 2px 2px 0 #000; opacity: 0; pointer-events: none;
 }
-.dmgpop.go { animation: pop 0.9s ease-out; }
+.dmgpop.go { animation: pop 1.6s ease-out; }
 @keyframes pop { 0% { opacity: 1; transform: translateY(0) scale(1.3); } 100% { opacity: 0; transform: translateY(-40px) scale(1); } }
 .ko {
   position: absolute; top: 44%; font-family: var(--big); font-size: 22px; color: #fff; background: var(--red);
   padding: 2px 10px; border-radius: 8px; transform: rotate(-12deg); box-shadow: 3px 3px 0 #000; white-space: nowrap;
 }
-.projectile { position: absolute; top: 58px; font-size: 38px; left: 18%; pointer-events: none; z-index: 2; }
-.projectile.fly-r { animation: flyr .45s ease-in forwards; }
-.projectile.fly-l { animation: flyl .45s ease-in forwards; }
-@keyframes flyr { from { left: 18%; transform: rotate(0); } to { left: 76%; transform: rotate(540deg); } }
-@keyframes flyl { from { left: 76%; transform: rotate(0); } to { left: 18%; transform: rotate(-540deg); } }
+.projectile { position: absolute; top: 52px; font-size: 54px; left: 18%; pointer-events: none; z-index: 2;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,.55)) drop-shadow(3px 3px 0 #000); }
+.projectile.fly-r { animation: flyr 1.7s ease-in-out forwards; }
+.projectile.fly-l { animation: flyl 1.7s ease-in-out forwards; }
+/* slow arc with one spin, so you can actually see the weapon */
+@keyframes flyr { 0% { left: 18%; transform: translateY(0) rotate(0) scale(.8); }
+  50% { transform: translateY(-40px) rotate(180deg) scale(1.2); }
+  100% { left: 76%; transform: translateY(0) rotate(360deg) scale(1); } }
+@keyframes flyl { 0% { left: 76%; transform: translateY(0) rotate(0) scale(.8); }
+  50% { transform: translateY(-40px) rotate(-180deg) scale(1.2); }
+  100% { left: 18%; transform: translateY(0) rotate(-360deg) scale(1); } }
 .speech, .bubble {
   background: var(--bg); border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px;
   font-size: 15px; line-height: 1.45; min-height: 66px; margin-top: 14px;
@@ -387,14 +393,14 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   font-family: var(--big); font-size: 34px; letter-spacing: 1px; white-space: nowrap; pointer-events: none;
   color: #fff; background: var(--a2); padding: 6px 18px; border-radius: 12px; box-shadow: 5px 5px 0 #000;
 }
-.sigflash.go { animation: sig 1.4s ease-out forwards; }
+.sigflash.go { animation: sig 2.4s ease-out forwards; }
 @keyframes sig { 0% { transform: translate(-50%,-50%) rotate(-6deg) scale(.2); opacity: 0; }
   20% { transform: translate(-50%,-50%) rotate(-6deg) scale(1.25); opacity: 1; }
   80% { transform: translate(-50%,-50%) rotate(-6deg) scale(1); opacity: 1; }
   100% { transform: translate(-50%,-50%) rotate(-6deg) scale(1); opacity: 0; } }
 .war-box.quake { animation: quake .6s; }
 @keyframes quake { 10%,50%,90% { transform: translate(-6px, 3px); } 30%,70% { transform: translate(6px, -3px); } }
-.projectile.big { font-size: 54px; }
+.projectile.big { font-size: 70px; }
 @media (max-width: 520px) { .avatar img { width: 84px; height: 84px; } .sigflash { font-size: 22px; } }
 
 /* ---------- pictures ---------- */
@@ -402,8 +408,8 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .vbtns button { font-size: 12px; }
 
 /* Tawawawa's bullet: flies straight (no spin), points at the target */
-.projectile.straight.fly-r { animation: flyrs .3s linear forwards; }
-.projectile.straight.fly-l { animation: flyls .3s linear forwards; }
+.projectile.straight.fly-r { animation: flyrs 1s linear forwards; }
+.projectile.straight.fly-l { animation: flyls 1s linear forwards; }
 .projectile.straight.fly-l .bullet { transform: scaleX(-1); }
 @keyframes flyrs { from { left: 18%; } to { left: 76%; } }
 @keyframes flyls { from { left: 76%; } to { left: 18%; } }

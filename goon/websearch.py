@@ -422,17 +422,12 @@ def instagram_user(username: str, cookie_path, n: int = 12) -> list[dict]:
     """A creator's newest reels (captions or not). Needs the Instagram login in cookies.txt."""
     s = _ig_session(cookie_path)
     out, seen = [], set()
-    r = s.get(f"{IG}/api/v1/users/web_profile_info/", params={"username": username}, timeout=20)
-    if r.status_code != 200:
-        raise BlockedError(f"instagram said {r.status_code}")
-    d = r.json()
+    d = _ig_get(s, f"{IG}/api/v1/users/web_profile_info/", {"username": username})
     user = (d.get("data") or {}).get("user") or {}
     if user.get("id"):
         try:
-            r2 = s.post(f"{IG}/api/v1/clips/user/", timeout=20,
-                        data={"target_user_id": user["id"], "page_size": n, "include_feed_video": "true"})
-            if r2.status_code == 200:
-                _ig_videos(r2.json(), out, seen)
+            _ig_videos(_ig_get(s, f"{IG}/api/v1/clips/user/", data={
+                "target_user_id": user["id"], "page_size": n, "include_feed_video": "true"}), out, seen)
         except Exception:
             pass
     _ig_videos(user, out, seen)                    # the profile page itself lists recent posts
@@ -441,31 +436,109 @@ def instagram_user(username: str, cookie_path, n: int = 12) -> list[dict]:
     return out[:n]
 
 
-def instagram_api(query: str, cookie_path, n: int = 30) -> list[dict]:
-    jar = load_cookies(cookie_path, "instagram.com")
-    if not jar:
-        raise BlockedError("no instagram login in cookies.txt")
-    csrf = next((c.value for c in jar if c.name == "csrftoken" and "instagram" in c.domain), "")
-    s = net.session(cookies=[c for c in jar if "instagram" in c.domain],
-                    headers={"X-IG-App-ID": IG_APP_ID, "X-Requested-With": "XMLHttpRequest",
-                             "X-CSRFToken": csrf, "Referer": "https://www.instagram.com/"})
+_ig_lock = threading.Lock()
+_ig = {"next": 0.0}
+IG_GAP = 3.0   # Instagram flags accounts that click too fast: one call every 3s, for everything
+
+
+def _ig_get(s, url, params=None, data=None):
+    """One polite Instagram call. Raises BlockedError with a clear reason."""
+    with _ig_lock:
+        now = time.time()
+        slot = max(now, _ig["next"])
+        _ig["next"] = slot + IG_GAP
+    if slot > now:
+        time.sleep(slot - now)
+    r = s.post(url, data=data, timeout=20) if data is not None else s.get(url, params=params, timeout=20)
+    if r.status_code in (401, 403) or "login" in str(r.url) or "checkpoint" in str(r.url):
+        raise BlockedError("instagram says log in again (cookies.txt old? export a fresh one)")
+    if r.status_code == 429 or "wait a few minutes" in r.text[:500].lower():
+        raise BlockedError("instagram says slow down (429): too many searches, wait ~10 min")
+    if r.status_code != 200:
+        raise BlockedError(f"instagram said {r.status_code}")
+    try:
+        return r.json()
+    except ValueError:
+        raise BlockedError("instagram sent a web page, not data (cookies.txt old?)")
+
+
+def _find(obj, key, depth=0):
+    """First value of `key` anywhere in Instagram's JSON."""
+    if depth > 8:
+        return None
+    if isinstance(obj, dict):
+        if key in obj:
+            return obj[key]
+        vals = obj.values()
+    elif isinstance(obj, list):
+        vals = obj
+    else:
+        return None
+    for v in vals:
+        r = _find(v, key, depth + 1)
+        if r is not None:
+            return r
+    return None
+
+
+def instagram_api(query: str, cookie_path, n: int = 30):
+    """Instagram's own search as you (cookies.txt): keyword search + the hashtag's TOP and
+    RECENT reels, several pages each, so every run finds new videos, not the same top 20."""
+    s = _ig_session(cookie_path)
     out, seen, errors = [], set(), []
     tag = re.sub(r"[^\w]", "", query).lower()
-    for url, params in ((f"{IG}/api/v1/fbsearch/web/top_serp/", {"query": query}),
-                        (f"{IG}/api/v1/tags/web_info/", {"tag_name": tag})):
-        try:
-            r = s.get(url, params=params, timeout=20)
-            if r.status_code in (401, 403) or "login" in str(r.url):
-                errors.append("instagram says log in again (cookies.txt old?)")
-                continue
-            if r.status_code != 200:
-                errors.append(f"instagram said {r.status_code}")
-                continue
-            _ig_videos(r.json(), out, seen)
-        except Exception as e:
-            errors.append(net.nice(e)[:80])
-        if len(out) >= n:
-            break
+
+    def take(d):
+        before = len(out)
+        _ig_videos(d, out, seen)
+        yield from out[before:]
+
+    # 1) keyword search, then its next pages
+    try:
+        d = _ig_get(s, f"{IG}/api/v1/fbsearch/web/top_serp/", {"query": query})
+        yield from take(d)
+        for _page in range(3):
+            if len(out) >= n:
+                return
+            grid = d.get("media_grid") or d
+            nxt, more = _find(grid, "next_max_id"), _find(grid, "has_more") or _find(grid, "more_available")
+            if not nxt or not more:
+                break
+            params = {"query": query, "next_max_id": nxt}
+            rank = _find(grid, "rank_token")
+            if rank:
+                params["rank_token"] = rank
+            d = _ig_get(s, f"{IG}/api/v1/fbsearch/web/top_serp/", params)
+            got = len(out)
+            yield from take(d)
+            if len(out) == got:
+                break
+    except BlockedError as e:
+        errors.append(str(e))
+        if "log in" in str(e) or "slow down" in str(e):
+            raise
+    except Exception as e:
+        errors.append(net.nice(e)[:80])
+    if len(out) >= n or not tag:
+        return
+    # 2) hashtag page: top + RECENT reels (recent = fresh stuff every time), then recent pages
+    try:
+        d = _ig_get(s, f"{IG}/api/v1/tags/web_info/", {"tag_name": tag})
+        yield from take(d)
+        recent = _find(d, "recent") or {}
+        for _page in range(3):
+            if len(out) >= n or not isinstance(recent, dict):
+                break
+            nxt = recent.get("next_max_id")
+            if not nxt or not recent.get("more_available"):
+                break
+            d = _ig_get(s, f"{IG}/explore/tags/{tag}/", {"__a": 1, "__d": "dis", "max_id": nxt})
+            got = len(out)
+            yield from take(d)
+            recent = _find(d, "recent") or {}
+            if len(out) == got:
+                break
+    except Exception as e:
+        errors.append(str(e)[:120])
     if not out and errors:
-        raise BlockedError("; ".join(errors))
-    return out[:n]
+        raise BlockedError("; ".join(dict.fromkeys(errors)))

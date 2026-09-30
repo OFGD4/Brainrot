@@ -57,14 +57,32 @@ def create_app(cfg, db, engine, hw, updater):
         return war(request.args.get("from", ""), request.args.get("to", ""))
 
     # ----------------------------------------------------------- cookies --
+    def _cookie_rows(text):
+        """Netscape cookies.txt lines keyed by (domain, path, name). Keeps #HttpOnly_ lines."""
+        out = {}
+        for line in (text or "").splitlines():
+            line = line.rstrip("\r")
+            if not line.strip() or (line.startswith("#") and not line.startswith("#HttpOnly_")):
+                continue
+            parts = line.split("\t")
+            if len(parts) < 7:
+                continue
+            out[(parts[0].replace("#HttpOnly_", "").lstrip("."), parts[2], parts[5])] = line
+        return out
+
     def _cookie_status():
         from .collect import cookie_file
         f = cookie_file()
         if not f:
             return {"loaded": False, "sites": []}
         text = f.read_text("utf-8", errors="ignore")
-        sites = [name for name, dom in (("TikTok", "tiktok.com"), ("Instagram", "instagram.com"),
-                                        ("YouTube", "youtube.com")) if dom in text]
+        login = {"tiktok.com": ("sessionid", "sid_tt"), "instagram.com": ("sessionid",)}
+        rows = _cookie_rows(text)
+        sites = []
+        for name, dom in (("TikTok", "tiktok.com"), ("Instagram", "instagram.com"), ("YouTube", "youtube.com")):
+            mine = {k[2] for k in rows if k[0].endswith(dom)}
+            if mine:   # say if it's a real login or just visitor cookies
+                sites.append(name + (" ✓" if any(n in mine for n in login.get(dom, ())) else " (not logged in)"))
         return {"loaded": True, "sites": sites}
 
     @app.get("/api/cookies")
@@ -73,14 +91,17 @@ def create_app(cfg, db, engine, hw, updater):
 
     @app.post("/api/cookies")
     def cookies_set():
+        """Add a cookies.txt. MERGED with the one already there, so you can give the TikTok file
+        and the Instagram file one after the other (same cookie in both = the new one wins)."""
         text = request.get_data(as_text=True) or ""
-        lines = [l for l in text.splitlines() if l.strip() and not l.startswith("#")]
-        ok = "Netscape HTTP Cookie File" in text[:200] or \
-            (lines and all(len(l.split("\t")) >= 7 for l in lines[:20]))
-        if not ok:
-            return {"loaded": False, "sites": [], "bad": True}, 400
+        rows = _cookie_rows(text)
+        if not rows:
+            return {**_cookie_status(), "bad": True}, 400
         from .paths import data_dir
-        (data_dir() / "cookies.txt").write_text(text, "utf-8")
+        f = data_dir() / "cookies.txt"
+        have = _cookie_rows(f.read_text("utf-8", errors="ignore")) if f.exists() else {}
+        have.update(rows)
+        f.write_text("# Netscape HTTP Cookie File\n" + "\n".join(have.values()) + "\n", "utf-8")
         from . import collect
         collect.COOKIES_BROKEN.clear()
         return _cookie_status()

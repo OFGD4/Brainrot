@@ -88,9 +88,13 @@ const BULLET = `<svg class="bullet" viewBox="0 0 64 24" width="60" height="22" a
   <path d="M40 7 H46 C52 7 56 10 57 11" fill="none" stroke="#f1c28e" stroke-width="2" stroke-linecap="round"/></svg>`;
 const face = (c) => c && c.img ? `<img src="${esc(c.img)}" alt="${esc(c.name)}">` : "";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let warSkip = false, warNext = null;
+const SCENE_MS = 5000;   // each line of the fight stays this long before the next one
+const THROW_MS = 1700;   // how long a weapon emoji flies (slow enough to see it)
+let warSkip = false, lineSkip = false, warNext = null;
 
-function waitOrClick(ms) {           // click on the arena = next line faster
+// a wait that the "skip line" / "skip fight" buttons can cut short
+function wwait(ms) {
+  if (warSkip || lineSkip) return Promise.resolve();
   return new Promise((res) => {
     const done = () => { clearTimeout(tm); warNext = null; res(); };
     const tm = setTimeout(done, ms);
@@ -141,54 +145,60 @@ async function languageWar(from, to) {
   $("warTitle").textContent = "⚔️ " + w.title + " ⚔️";
   $("warVs").textContent = w.vs;
   $("warSkip").textContent = w.skip;
+  $("warNextBtn").textContent = w.next;
   $("warOk").textContent = w.ok;
-  $("warOk").hidden = true; $("warSkip").hidden = false;
+  $("warOk").hidden = true; $("warSkip").hidden = false; $("warNextBtn").hidden = false;
   $("warResult").hidden = true;
   $("spWho").textContent = ""; $("spText").textContent = "";
   $("speech").hidden = false;
   $("war").hidden = false;
   warSkip = false;
   const wIdx = { atk: 0, def: 0 };
-  await sleep(500);
+  await sleep(600);
 
   for (const line of w.lines) {
     if (warSkip) break;
+    lineSkip = false;
     const me = side[line.who], them = line.who === "atk" ? "def" : "atk", themS = side[them];
     $("f" + me).classList.add("talk");
     $("spWho").innerHTML = face(w[line.who]) + esc(w[line.who].name) + ":";
     const txt = line.text; $("spText").textContent = "";
-    for (let i = 0; i < txt.length && !warSkip; i += 2) {   // typewriter
+    for (let i = 0; i < txt.length && !warSkip && !lineSkip; i += 2) {   // typewriter
       $("spText").textContent = txt.slice(0, i + 2);
-      await sleep(16);
+      await wwait(28);
     }
     $("spText").textContent = txt;
-    if (line.sig && !warSkip) {
+    if (line.sig) {
       const fl = $("sigFlash");
       fl.textContent = "💥 " + w.sig + " 💥";
       fl.hidden = false; fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
       $("warBox").classList.remove("quake"); void $("warBox").offsetWidth; $("warBox").classList.add("quake");
-      await sleep(700);
+      await wwait(1600);
     }
-    if (line.dmg && !warSkip) {
+    if (line.dmg) {
       const p = $("proj");
       const ws = w[line.who].weapons || [w[line.who].weapon];
       const wp = ws[wIdx[line.who]++ % ws.length];
-      if (wp === "bullet") p.innerHTML = line.sig ? BULLET.repeat(3) : BULLET;
-      else p.textContent = line.sig ? wp.repeat(3) : wp;
-      p.className = "projectile" + (line.sig ? " big" : "") + (wp === "bullet" ? " straight" : "");
-      p.hidden = false; void p.offsetWidth;
-      p.classList.add(me === "L" ? "fly-r" : "fly-l");
-      await sleep(430);
+      if (!warSkip && !lineSkip) {                  // the weapon flies across, slow + big
+        if (wp === "bullet") p.innerHTML = line.sig ? BULLET.repeat(3) : BULLET;
+        else p.textContent = line.sig ? wp.repeat(3) : wp;
+        p.className = "projectile" + (line.sig ? " big" : "") + (wp === "bullet" ? " straight" : "");
+        p.style.animationDuration = (wp === "bullet" ? THROW_MS * 0.6 : THROW_MS) + "ms";
+        p.hidden = false; void p.offsetWidth;
+        p.classList.add(me === "L" ? "fly-r" : "fly-l");
+        await wwait(wp === "bullet" ? THROW_MS * 0.6 : THROW_MS);
+      }
       p.hidden = true;
-      hp[them] -= line.dmg;
+      hp[them] -= line.dmg;                          // damage always counts, even when skipped
       setHp(themS, hp[them]);
       const f = $("f" + themS); f.classList.remove("hit"); void f.offsetWidth; f.classList.add("hit");
       const pop = $("dp" + themS); pop.textContent = "-" + line.dmg; pop.classList.remove("go"); void pop.offsetWidth; pop.classList.add("go");
     }
-    await waitOrClick(Math.min(2600, 900 + txt.length * 22) + (line.sig ? 900 : 0));
+    await wwait(SCENE_MS);                           // stay on this scene, then the next one
     $("f" + me).classList.remove("talk");
     $("sigFlash").hidden = true;
   }
+  warNext = null;
 
   // finish: challenger always wins
   setHp("L", 0);
@@ -200,14 +210,14 @@ async function languageWar(from, to) {
     `<div class="said">${face(w.atk)}<span>"${esc(w.atk.win)}"</span></div>` +
     `<div class="said lose">${face(w.def)}<span>"${esc(w.def.lose)}"</span></div>`;
   $("warResult").hidden = false;
-  $("warSkip").hidden = true; $("warOk").hidden = false;
+  $("warSkip").hidden = true; $("warNextBtn").hidden = true; $("warOk").hidden = false;
   await new Promise((res) => { $("warOk").onclick = res; });
   $("war").hidden = true;
   await switchLang(to, `${w.atk.name}: "${w.atk.win}"`);
 }
+// two buttons: skip the WHOLE fight, or skip only the current line (one at a time)
 $("warSkip").onclick = () => { warSkip = true; if (warNext) warNext(); };
-$("arena").onclick = () => { if (warNext) warNext(); };
-$("speech").onclick = () => { if (warNext) warNext(); };
+$("warNextBtn").onclick = () => { lineSkip = true; if (warNext) warNext(); };
 
 // ----------------------------------------------------------------- boot --
 async function boot() {
@@ -590,7 +600,11 @@ $("doom").addEventListener("wheel", (e) => {
   doomMove(e.deltaY > 0 ? 1 : -1);
 }, { passive: false });
 document.addEventListener("keydown", (e) => {
-  if (!$("war").hidden) { if (e.key === "Escape") $("warSkip").click(); else if (warNext) warNext(); return; }
+  if (!$("war").hidden) {
+    if (e.key === "Escape") $("warSkip").click();
+    else if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") { e.preventDefault(); if (!$("warNextBtn").hidden) $("warNextBtn").click(); }
+    return;
+  }
   if (e.key === "Escape" && !$("doom").hidden) return closeDoom();
   if (e.key === "Escape") return closeDrawers();
   if ($("doom").hidden) return;
@@ -634,9 +648,12 @@ function showCookies(st) {
 }
 async function loadCookies() { try { showCookies(await api("/api/cookies")); } catch (e) {} }
 $("cookieFile").onchange = async (e) => {
-  const f = e.target.files[0]; if (!f) return;
-  const r = await fetch("/api/cookies", { method: "POST", body: await f.text(), headers: { "Content-Type": "text/plain" } });
-  showCookies(await r.json()); e.target.value = "";
+  // one or more files (e.g. the TikTok one + the Instagram one): all get merged into one login
+  for (const f of e.target.files) {
+    const r = await fetch("/api/cookies", { method: "POST", body: await f.text(), headers: { "Content-Type": "text/plain" } });
+    showCookies(await r.json());
+  }
+  e.target.value = "";
 };
 $("cookieClear").onclick = async () => showCookies(await api("/api/cookies/clear", {}));
 loadCookies();

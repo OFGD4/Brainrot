@@ -48,6 +48,8 @@ Each language has a champion (pictures in `web/champs/`): **Niba**, **HelosFroms
 HelosFromsIllsnois' signature move fires in every war he's in: "Hellos hows ares yous mes gonnas sfucks yous".
 Illsonois rule breakers: "as" stays "as", Illinois is written **Illisnois** (no extra s), fuck becomes **sfucks**.
 Switching language = the current champion guilt-trips you, then they fight. The new language always wins.
+Each line of the fight stays ~5 seconds, weapons fly slowly so you can see them. Buttons: **skip talk ▶** (skip only the
+current line, one at a time; also Enter / → key) and **skip fight ⏭** (skip the whole fight; also Esc).
 
 ## No AI slop 🚫🤖
 Memes, brainrot and weird edits made by people only. Every video goes through 4 checks:
@@ -86,6 +88,16 @@ All searches run side by side: a slow site never holds up the others.
   they run out (default) / **mix all**. Every kept video shows its site, and each run ends with "me got: X from TikTok...".
 - No guarantee TikTok/Insta always deliver: search engines can block for a while, and Insta needs a login.
 - A site that keeps failing gets skipped for that run (with a hint).
+- **Why one site works and the other doesn't** — every run ends with a 📊 line per site, e.g.
+  `📊 TikTok: 40 found → 10 judged, 20 seen before, 8 AI, 1 copycat, 1 broke → 5 kept` or
+  `📊 Instagram: found NOTHING. why: instagram says log in again`. Usual reasons:
+  - **TikTok down, Insta fine**: tikwm said 403 (too many searches from your internet, it rests a bit) and TikTok's
+    own search needs your TikTok login in cookies.txt; or TikTok downloads kept failing, so TikTok got skipped for that run.
+  - **Insta down, TikTok fine**: no cookies.txt (Insta search needs a login), the login expired ("log in again":
+    export a fresh cookies.txt), Instagram said "slow down" (429: wait ~10 min), or reel downloads need the login.
+  - **Works once, then "nothing new"**: everything it found was "seen before". Instagram search now also pages through
+    more results + the hashtag's RECENT reels, so each run gets fresh videos.
+  - Instagram calls are spaced 3s apart so your account doesn't get flagged for clicking too fast.
 
 ### 💎 Hidden gems (videos with NO caption)
 Search only finds videos whose caption / hashtags match your words, so caption-less rot never shows up in a search.
@@ -106,7 +118,9 @@ Chrome locks its cookies on Windows, so use a file instead:
 1. Install the free browser extension **"Get cookies.txt LOCALLY"**.
 2. Log in to tiktok.com and instagram.com in that browser.
 3. Click the extension, export cookies (all sites or those two) -> `cookies.txt`.
-4. ME BRAIN > more brain stuff > **or give me cookies.txt** -> pick the file. It shows which sites it found.
+4. ME BRAIN > more brain stuff > **or give me cookies.txt** -> pick the file. Got one file per site (e.g.
+   `www.tiktok.com_cookies.txt` + `www.instagram.com_cookies.txt`)? Pick both (or one after the other): they get
+   **merged**. It shows each site with ✓ = logged in, or "(not logged in)" = visitor cookies only (won't help).
 Cookies are only sent to TikTok/Instagram, never YouTube. Treat the file like a password (it logs in as you).
 
 ## Brain (all free)

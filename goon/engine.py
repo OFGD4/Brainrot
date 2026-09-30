@@ -417,7 +417,15 @@ class Engine:
         self.progress.update({"kept": 0, "checked": 0, "target": count, "pct": None})
         self.tally = self._new_tally()
         self.log("start", "good")
-        collect.warn = lambda k, **kw: self._rlog(run, k, "warn", **kw)
+        self.site_why, self.site_err, self.searched = {}, {}, []
+
+        def warn(k, **kw):
+            if k == "site_empty" and kw.get("site"):          # keep every reason, first = root cause
+                why = self.site_why.setdefault(kw["site"].lower(), [])
+                if kw.get("why") and kw["why"] not in why:
+                    why.append(kw["why"])
+            self._rlog(run, k, "warn", **kw)
+        collect.warn = warn
         collect.warned = set()
         collect.user_blocked = self.db.ai_blocked
         self.src_off, self.src_fails, self.fails_in_row, self.last_err = set(), {}, 0, ""
@@ -638,6 +646,8 @@ class Engine:
                 kind, q, it, extra = todo.pop(0)
                 if extra.get("src") in self.src_off:
                     continue                 # that site was switched off for this run
+                if extra.get("src") and extra["src"] not in self.searched:
+                    self.searched.append(extra["src"])
                 key = (kind, q, tuple(extra.items()))
                 if key not in started:
                     started.add(key)
@@ -662,6 +672,7 @@ class Engine:
                              err=str(c).replace("ERROR: ", "")[:200])
                 elif c["src"] not in self.src_off:
                     self._count(run, "found")
+                    self._count(run, "found_" + c["src"])
                     yield c
                     if run.over():
                         raise Stopped()
@@ -676,6 +687,7 @@ class Engine:
         run.tried.add(cand["key"])
         if self.db.seen(cand["key"]):
             self._count(run, "seen")
+            self._count(run, "seen_" + cand["src"])
             return False
         if cand["live"]:
             self._count(run, "live")
@@ -702,6 +714,7 @@ class Engine:
             if run.over():
                 return
             self.tally["ai"] += 1
+            self.tally["ai_" + cand["src"]] = self.tally.get("ai_" + cand["src"], 0) + 1
             user = cand.get("uploader") or ""
             if score_ai is None:
                 if strikes or user.lower() not in self._ai_users_said:
@@ -795,6 +808,7 @@ class Engine:
                 self.db.add(key=cand["key"], url=cand["url"], title=meta["title"], status="dupe",
                             dupe_of=dup, duration=dur, query=cand["query"])
                 self._count(run, "dupe")
+                self._count(run, "dupe_" + cand["src"])
                 self._ok(run, cand)
                 return None
             if run.over():
@@ -935,6 +949,7 @@ class Engine:
                     return
                 v = localize_verdict(v, self.cfg["lang"])
                 self.progress["checked"] += 1
+                self.tally["judged_" + cand["src"]] = self.tally.get("judged_" + cand["src"], 0) + 1
                 self._ok(run, cand)
                 if v.get("ai", 0) >= AI_LIMIT:
                     self._ai(run, meta, v["why"] or "AI", strikes=1, score_ai=v["ai"],
@@ -1001,6 +1016,8 @@ class Engine:
                 return
             err = net.nice(err) if "curl" in str(err) else str(err)
             self.tally["fail"] += 1
+            self.tally["fail_" + cand["src"]] = self.tally.get("fail_" + cand["src"], 0) + 1
+            self.site_err[cand["src"]] = err
             self.last_err = err
             self.log(kind, "bad", err=err[:220])
             self.db.add(key=cand["key"], url=cand["url"], title=cand["title"], status="fail",
@@ -1027,6 +1044,26 @@ class Engine:
             run.end = key
             run.halt.set()
 
+    SITE_NAMES = {"tiktok": "TikTok", "instagram": "Instagram", "youtube": "YouTube"}
+
+    def _site_report(self):
+        """One line per site: what it found and where it all went. Shows exactly why one site
+        gave videos and another didn't (login, rate limit, all seen before, all AI, broke...)."""
+        t = self.tally
+        for src in getattr(self, "searched", []):
+            name = self.SITE_NAMES.get(src, src)
+            found = t.get("found_" + src, 0)
+            if not found:
+                why = self.site_why.get(name.lower()) or self.site_why.get(src) or ["no results"]
+                self.log("site_report_none", "warn", site=name, why=" → then: ".join(why[:2])[:260])
+                continue
+            self.log("site_report", site=name, found=found, judged=t.get("judged_" + src, 0),
+                     seen=t.get("seen_" + src, 0), ai=t.get("ai_" + src, 0),
+                     dupe=t.get("dupe_" + src, 0), fail=t.get("fail_" + src, 0),
+                     kept=t.get("site_" + src, 0))
+            if src in self.src_off or (t.get("fail_" + src, 0) and not t.get("site_" + src, 0)):
+                self.log("site_report_err", "warn", site=name, err=self.site_err.get(src, "?")[:200])
+
     def _summary(self, run):
         """Say what happened, and the most likely fix when not enough rot was found."""
         t = self.tally
@@ -1038,6 +1075,7 @@ class Engine:
                      yt=t.get("site_youtube", 0))
         if t.get("gems"):
             self.log("gems_got", "good", g=t["gems"])
+        self._site_report()
         if self.progress["kept"] >= self.progress["target"] or self.stop.is_set() or run.end:
             return                           # (gave up: the reason was already said)
         tt_ig = t.get("site_tiktok", 0) + t.get("site_instagram", 0)

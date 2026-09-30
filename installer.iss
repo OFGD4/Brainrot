@@ -8,7 +8,7 @@
   #define AppVersion "0.0.0"
 #endif
 #ifndef AppURL
-  #define AppURL "https://github.com/OFGD4/BrainrotGoonMachine"
+  #define AppURL "https://github.com/OFGD4/Brainrot"
 #endif
 
 [Setup]
