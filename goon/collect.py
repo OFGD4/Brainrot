@@ -198,17 +198,6 @@ def search_tiktok(query: str, n: int, cfg):
         why.append(f"tikwm: {e}")
     if got:
         return
-    if cfg["browser_search"]:          # TikTok's own website in a hidden Edge, with ur login
-        from . import browser
-        if browser.find_browser():
-            try:
-                for v in browser.tiktok_search(query, n, cookie_file()):
-                    got += 1
-                    yield cand(v)
-            except Exception as e:
-                why.append(f"hidden edge: {e}")
-            if got:
-                return
     try:
         for v in websearch.tiktok_search(query, n, cookie_file()):
             got += 1
@@ -360,15 +349,6 @@ def _download_tiktok(cand, out_dir, cfg, stop=None):
         if _stopped(stop):
             raise
         errors.append(f"tiktok: {net.nice(e)[:120]}")
-    direct = cand.get("direct") or ""
-    if direct and "tikwm" not in direct and not direct.startswith(websearch.TIKWM):
-        try:                               # TikTok's own file link (from the hidden-Edge search)
-            return _direct(cand, out_dir, stop)
-        except Exception as e:
-            if _stopped(stop):
-                raise
-            errors.append(f"tiktok link: {net.nice(e)[:90]}")
-        cand = {**cand, "direct": ""}
     for attempt in range(3):
         rest = websearch.tikwm_rest_left()
         if rest > 30 or websearch.tikwm_strikes() >= 3:
@@ -442,17 +422,8 @@ def _ytdlp_download(cand, out_dir, cfg, stop=None):
 
 def _direct(cand, out_dir, stop=None):
     """Plain download of a video file link (tikwm gives these for TikTok), looking like Chrome."""
-    from urllib.parse import urlparse
     path = Path(out_dir) / f"{cand['id']}.mp4"
-    host = (urlparse(cand["direct"]).hostname or "").lower()
-    cookies = None
-    if host.endswith("tiktok.com"):        # TikTok's own links want ur login cookies + a TikTok referer
-        from .websearch import load_cookies
-        cf = cookie_file()
-        jar = load_cookies(cf, "tiktok.com") if cf else None
-        cookies = [c for c in jar if "tiktok" in c.domain] if jar else None
-    ref = "https://www.tikwm.com/" if "tikwm" in host else "https://www.tiktok.com/"
-    s = net.session(cookies=cookies, headers={"Referer": ref})
+    s = net.session(headers={"Referer": "https://www.tikwm.com/"})
     r = s.get(cand["direct"], stream=True, timeout=(15, 60) if not net.browser_ok() else 60)
     try:
         if r.status_code != 200:

@@ -481,29 +481,12 @@ def _find(obj, key, depth=0):
     return None
 
 
-def _short(q, n):
-    """Cut a long caption to about n characters, at a word / sentence break when possible."""
-    q = re.sub(r"[#@]\S+", " ", q or "")
-    q = re.sub(r"\s+", " ", q).strip()
-    if len(q) <= n:
-        return q
-    cut = q[:n]
-    for sep in ("。", ".", "!", "?", "，", ",", "、", " "):
-        i = cut.rfind(sep)
-        if i >= n // 2:
-            return cut[:i].strip()
-    return cut.strip()
-
-
 def instagram_api(query: str, cookie_path, n: int = 30):
     """Instagram's own search as you (cookies.txt): keyword search + the hashtag's TOP and
     RECENT reels, several pages each, so every run finds new videos, not the same top 20."""
     s = _ig_session(cookie_path)
     out, seen, errors = [], set(), []
-    query = _short(query, 40)            # Instagram says 404 to very long searches (whole captions)
     tag = re.sub(r"[^\w]", "", query).lower()
-    if len(tag) > 30:
-        tag = ""                         # a whole sentence is no hashtag
 
     def take(d):
         before = len(out)
