@@ -71,6 +71,7 @@
       <button id="goBtn" class="go" type="button" data-t="go">START GOONING</button>
     </div>
     <p class="noai-note" data-t="noai_note">🚫🤖 no AI slop: AI vidas + AI accounts get yeeted</p>
+    <label class="check gemcheck"><input type="checkbox" id="gems"><span data-t="gems_label">💎 hidden gems: also dig da creators + same sounds of good rot (find vids wit NO caption)</span></label>
 
     <button class="linkish" id="linksToggle" type="button" aria-expanded="false">
       <span class="plus" id="linksPlus">+</span> <span data-t="links_toggle">or giv me da links</span>
@@ -79,6 +80,12 @@
       <label for="links" data-t="links_help">yt channel/shorts, tiktok, reels, playlist. one per line</label>
       <textarea id="links" rows="3" placeholder="https://www.youtube.com/@somechannel/shorts&#10;https://www.tiktok.com/@someone"></textarea>
     </div>
+
+    <details class="pinbox" id="pinBox">
+      <summary><span id="pinToggle">📌 saved captions</span></summary>
+      <label for="always_search" data-t="pin_help">one caption per line</label>
+      <textarea id="always_search" rows="3"></textarea>
+    </details>
 
     <div class="prog" id="prog" hidden>
       <div class="prog-top">

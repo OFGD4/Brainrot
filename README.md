@@ -87,6 +87,20 @@ All searches run side by side: a slow site never holds up the others.
 - No guarantee TikTok/Insta always deliver: search engines can block for a while, and Insta needs a login.
 - A site that keeps failing gets skipped for that run (with a hint).
 
+### 💎 Hidden gems (videos with NO caption)
+Search only finds videos whose caption / hashtags match your words, so caption-less rot never shows up in a search.
+With **💎 hidden gems** on (under the START button, on by default), every time a video is kept the app also digs:
+- that **creator's other videos** (TikTok, YouTube channel Shorts, Instagram with cookies.txt)
+- other **TikTok videos with the same sound**
+The AI judges those by picture + sound only ("no caption" never lowers the score). Kept videos with no real caption get a
+**💎 GEM** badge in the cave and `GEM_` in the file name. AI accounts / AI sounds are never dug. Digging is limited per
+run (about 2x the number of videos you asked for) so it doesn't go down the rabbit hole forever.
+
+### 📌 Saved captions
+Under the START button: **saved captions**, one per line. Every caption there is searched on EVERY run, on top of
+whatever you type (you can even leave the words empty). Paste the caption of a video you liked to find its reposts +
+similar videos. Comes with one example caption; delete it if you don't want it.
+
 ### Login for TikTok / Instagram (cookies.txt)
 Chrome locks its cookies on Windows, so use a file instead:
 1. Install the free browser extension **"Get cookies.txt LOCALLY"**.

@@ -129,6 +129,7 @@ def _cand(e: dict, query: str) -> dict | None:
         "duration": e.get("duration") or 0, "tags": e.get("tags") or [],
         "description": e.get("description") or "", "query": query,
         "live": bool(e.get("is_live") or e.get("live_status") == "is_live"),
+        "creator_url": e.get("channel_url") or e.get("uploader_url") or "",
     }
 
 
@@ -186,11 +187,7 @@ def search_tiktok(query: str, n: int, cfg):
     disguise = "" if net.browser_ok() else " [chrome disguise OFF: curl_cffi missing, run build.bat again]"
 
     def cand(v):
-        c = _cand_from_url(v["url"], "tiktok", query)
-        c.update(id=v["id"], key=f"tiktok:{v['id']}", title=v["title"], duration=v["duration"],
-                 uploader=v["author"], direct=v.get("play") or "", ai_label=v.get("ai_label"),
-                 tags=v.get("tags") or [])
-        return c
+        return _tt_cand(v, query)
 
     try:
         for v in websearch.tikwm_search(query, n, on_wait=lambda s: _say(
@@ -227,6 +224,57 @@ def search_tiktok(query: str, n: int, cfg):
             yield from expand_link(f"https://www.tiktok.com/@{u}", 12, cfg, query=query)
         except Exception:
             continue               # private / gone profile: next creator
+
+
+def _tt_cand(v, query):
+    c = _cand_from_url(v["url"], "tiktok", query)
+    c.update(id=v["id"], key=f"tiktok:{v['id']}", title=v["title"], duration=v["duration"],
+             uploader=v["author"], direct=v.get("play") or "", ai_label=v.get("ai_label"),
+             tags=v.get("tags") or [], music_id=v.get("music_id") or "", music=v.get("music") or "")
+    return c
+
+
+# ---------------------------------------------------------- hidden gems --
+# Search only finds videos whose caption/hashtags match the words. Lots of the best rot has
+# NO caption at all. So when a video is good, dig where it came from: the creator's other
+# videos and other videos with the same sound. The AI judges those by picture + sound.
+
+def dig_tiktok_user(user, n, cfg, query):
+    from . import websearch
+    got = 0
+    try:
+        for v in websearch.tikwm_user_posts(user, n):
+            got += 1
+            yield _tt_cand(v, query)
+    except Exception:
+        pass
+    if not got:                    # tikwm resting: TikTok's own profile page via yt-dlp
+        yield from expand_link(f"https://www.tiktok.com/@{user}", n, cfg, query=query)
+
+
+def dig_tiktok_sound(music_id, n, cfg, query):
+    from . import websearch
+    for v in websearch.tikwm_sound_posts(music_id, n):
+        yield _tt_cand(v, query)
+
+
+def dig_youtube_channel(url, n, cfg, query):
+    url = url.rstrip("/")
+    if not url.endswith("/shorts"):
+        url += "/shorts"
+    yield from expand_link(url, n, cfg, query=query)
+
+
+def dig_instagram_user(user, n, cfg, query):
+    from . import websearch
+    cf = cookie_file()
+    if not cf:
+        return
+    for v in websearch.instagram_user(user, cf, n):
+        c = _cand_from_url(v["url"], "instagram", query)
+        c.update(title=v["title"][:300], duration=v["duration"], uploader=v["author"],
+                 ai_label=v.get("ai_label"))
+        yield c
 
 
 def search_instagram(query: str, n: int, cfg):

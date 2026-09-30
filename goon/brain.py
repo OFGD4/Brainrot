@@ -28,6 +28,8 @@ meme edits and phonk edits, nonsense remixes, cursed clips, shitposts, goofy sou
 animals with loud distorted music, unhinged real people.
 Low brainrot: normal vlogs, tutorials, news, sports, music videos, ads, calm or informative content, \
 anything that makes normal sense.
+Many of the best brainrot videos have NO caption, title or hashtags at all. Never score lower because \
+the text is empty or unrelated: judge by what you SEE and HEAR.
 
 NO AI CONTENT: the user HATES AI-generated videos. Rate "ai" 0-10 = how likely this video is AI-made or \
 about AI: made with Sora, Veo, Kling, Hailuo, Runway, Pika, Grok Imagine, Midjourney etc., AI images or \
@@ -121,7 +123,7 @@ def build_prompt(meta: dict, transcript: str, n_images: int, taste: str,
         ai_limit=AI_LIMIT,
         taste=f"The user especially likes this kind of rot: {taste}\n" if taste else "",
         query=meta.get("query") or "anything",
-        title=(meta.get("title") or "?")[:200],
+        title=(meta.get("title") or "(no caption)")[:200],
         uploader=meta.get("uploader") or "?",
         duration=int(meta.get("duration") or 0),
         desc=desc or "(none)",

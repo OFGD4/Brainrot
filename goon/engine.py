@@ -36,6 +36,16 @@ def _safe(name: str, n=60) -> str:
     return (name[:n] or "vida").strip()
 
 
+_FAKE_TITLE = re.compile(r"^(?:tiktok video #?\d+|(?:video|post) by \S+|video \d+|instagram (?:video|reel)"
+                         r"(?: by \S+)?)$", re.I)
+
+
+def _real_title(t) -> str:
+    """yt-dlp invents 'TikTok video #123' / 'Video by x' when a post has no caption."""
+    t = (t or "").strip()
+    return "" if _FAKE_TITLE.match(t) else t
+
+
 # A broad word like "brainrot" is too vague for one search, so it gets mixed with lots of
 # different kinds of weird / meme / edit videos. No AI topics (no Italian brainrot, no AI slop).
 GENERIC_WORDS = {"brainrot", "brain rot", "brainrot videos", "brainrot vids", "rot", "weird",
@@ -69,6 +79,8 @@ class Run:
         self.pending = 0                     # videos somewhere in the pipeline
         self.search_done = False
         self.tried = set()                   # videos already in this run (found by 2 searches)
+        self.leads = deque()                 # hidden-gem digs waiting to start (creator / sound)
+        self.dug = set()                     # creators / sounds already dug this run
         self.enough = False
         self.end = None                      # fatal reason key, if the run gave up
         self.lock = threading.RLock()
@@ -439,6 +451,8 @@ class Engine:
         if not net.browser_ok():
             self.log("no_disguise", "warn")
         words = [w.strip() for w in (query or "").split(",") if w.strip()]
+        if self.pins():
+            self.log("pinned", n=len(self.pins()))
         if any(aifilter.query_is_ai(w) for w in words):
             self.log("ai_query", "warn")
 
@@ -446,25 +460,22 @@ class Engine:
         if wsize == "auto":
             wsize = self.hw.get("whisper", "base")
         opts = {"threshold": cfg["threshold"], "cave": cfg.cave(), "ear": cfg["ear_mode"],
-                "wsize": wsize, "team": team}
+                "wsize": wsize, "team": team, "gems": bool(cfg["gems"]),
+                "gems_max": max(8, min(40, count * 2))}
         for _ in range(1 if cfg["chill_cpu"] else 2):
             threading.Thread(target=self._fetch_loop, args=(run, opts), daemon=True).start()
         for b in brains:
             threading.Thread(target=self._judge_loop, args=(run, b, opts), daemon=True).start()
 
         try:
-            for cand in self._sources(run, query, links, count):
-                if run.over():
-                    break
-                if not self._precheck(run, cand):
+            self._feed(run, self._sources(run, query, links, count))
+            run.search_done = True
+            while not run.over():          # let the last videos finish (+ dig any new gem leads)
+                if run.leads:
+                    self._feed(run, self._round_robin(run, []))
                     continue
                 with run.lock:
-                    run.pending += 1
-                self._put(run, run.cands, cand)
-            run.search_done = True
-            while not run.over():                     # let the last videos finish
-                with run.lock:
-                    if run.pending <= 0:
+                    if run.pending <= 0 and not run.leads:
                         break
                 run.halt.wait(0.1)
         except Stopped:
@@ -483,6 +494,56 @@ class Engine:
             self.log("empty", "warn", k=k)
         self._summary(run)
 
+    def _feed(self, run, cands):
+        for cand in cands:
+            if run.over():
+                break
+            if not self._precheck(run, cand):
+                continue
+            with run.lock:
+                run.pending += 1
+            self._put(run, run.cands, cand)
+
+    # ------------------------------------------------------- hidden gems --
+    @staticmethod
+    def _is_gem(meta) -> bool:
+        """No real caption: nothing but hashtags / @names / emojis (or nothing at all)."""
+        text = f"{meta.get('title') or ''}"
+        text = re.sub(r"[#@]\S+|https?://\S+", " ", text)
+        return len(re.findall(r"[^\W\d_]{2,}", text)) < 2
+
+    def _add_leads(self, run, cand, meta, gems_max):
+        """Good rot found: dig its creator's other videos + other videos with the same sound.
+        That's where the caption-less hidden gems are (search can't find videos with no text)."""
+        src = cand["src"]
+        user = (meta.get("uploader") or cand.get("uploader") or "").strip().lstrip("@")
+        query = cand.get("query") or ""
+        what = []
+        if user and len(run.dug) < gems_max and not aifilter.name_hit(user) \
+                and not self.db.ai_blocked(src, user) and (src, "user", user.lower()) not in run.dug:
+            gen = None
+            if src == "tiktok":
+                gen = collect.dig_tiktok_user(user, 15, self.cfg, query)
+            elif src == "instagram" and collect.cookie_file():
+                gen = collect.dig_instagram_user(user, 12, self.cfg, query)
+            elif src == "youtube" and meta.get("creator_url"):
+                gen = collect.dig_youtube_channel(meta["creator_url"], 15, self.cfg, query)
+            if gen is not None:
+                run.dug.add((src, "user", user.lower()))
+                run.leads.append(("gem_user", "@" + user, gen, {"who": "@" + user, "src": src}))
+                what.append("@" + user)
+        mid, music = cand.get("music_id") or "", (cand.get("music") or "").strip()
+        if src == "tiktok" and mid and len(run.dug) < gems_max and ("tiktok", "sound", mid) not in run.dug \
+                and not aifilter.text_hit(music):
+            run.dug.add(("tiktok", "sound", mid))
+            label = music[:40] or mid
+            run.leads.append(("gem_sound", "♪ " + label,
+                              collect.dig_tiktok_sound(mid, 20, self.cfg, query),
+                              {"sound": label, "src": "tiktok"}))
+            what.append("♪ " + label)
+        if what:
+            self.log("gem_dig", what=" + ".join(what))
+
     # --------------------------------------------------------- searching --
     def _search_gens(self, q, n, kind, sites):
         """One search per site for these words: (kind, q, generator, log extras)."""
@@ -497,11 +558,18 @@ class Engine:
             out.append((kind, q, collect.search_youtube(q, n, self.cfg), {"src": "youtube"}))
         return out
 
-    def _phase(self, run, words, sites, pool, mix, generic):
-        """Search these sites: the words (+5 kinds of rot for a broad word), then dig deeper."""
+    def pins(self):
+        """Saved captions (ME: 'always search dese too'): one per line, searched every run."""
+        return [l.strip()[:100] for l in str(self.cfg["always_search"] or "").splitlines() if l.strip()]
+
+    def _phase(self, run, words, sites, pool, mix, generic, pins=()):
+        """Search these sites: the words + saved captions (+5 kinds of rot for a broad word),
+        then dig deeper (typed words only: a long caption + ' meme' just finds the same videos)."""
         gens = []
         for w in words:
             gens += self._search_gens(w, pool, "search", sites)
+        for w in pins:
+            gens += self._search_gens(w, max(pool // 2, 20), "pin_search", sites)
         for q in (mix[:5] if generic else []):
             gens += self._search_gens(q, max(pool // 3, 20), "search", sites)
         yield from self._round_robin(run, gens)
@@ -523,6 +591,7 @@ class Engine:
         mix = BRAINROT_MIX[:]
         random.shuffle(mix)
         generic = [w for w in words if w.lower() in GENERIC_WORDS]
+        pins = [p for p in self.pins() if p.lower() not in {w.lower() for w in words}]
         mode = self.cfg["source_mode"]
         main = ["tiktok", "instagram"] if mode in ("only", "first") else ["tiktok", "instagram", "youtube"]
         backup = ["youtube"] if mode == "first" else []
@@ -530,10 +599,10 @@ class Engine:
         # pasted links always count, whatever site they are
         yield from self._round_robin(run, [("link", l, collect.expand_link(l, pool, self.cfg), {})
                                            for l in link_list])
-        yield from self._phase(run, words, main, pool, mix, generic)
+        yield from self._phase(run, words, main, pool, mix, generic, pins)
         if backup and not run.over():   # TikTok + Insta ran dry: fill the rest from YouTube
             self.log("backup", "warn")
-            yield from self._phase(run, words, backup, pool, mix, generic)
+            yield from self._phase(run, words, backup, pool, mix, generic, pins)
 
     FEEDERS = 6   # searches running at the same time
 
@@ -560,9 +629,11 @@ class Engine:
             except Exception as e:      # noqa: BLE001 - reported by the reader
                 q.put(("err", e))
 
-        while todo or live:
+        while todo or live or run.leads:
             if run.over():
                 raise Stopped()
+            while run.leads:                 # hidden-gem digs go first
+                todo.insert(0, run.leads.popleft())
             while todo and len(live) < self.FEEDERS:
                 kind, q, it, extra = todo.pop(0)
                 if extra.get("src") in self.src_off:
@@ -688,13 +759,15 @@ class Engine:
             if run.over():
                 return None
             meta = {**cand,
-                    "title": info.get("title") or cand["title"],
+                    "title": cand["title"] or _real_title(info.get("title")),
                     "uploader": info.get("uploader") or info.get("channel") or cand["uploader"],
                     "duration": info.get("duration") or cand["duration"],
                     "tags": info.get("tags") or cand["tags"],
                     "description": info.get("description") or cand["description"],
                     "ai_label": info.get("ai_label") or cand.get("ai_label")
-                    or aifilter.label_hit(info)}
+                    or aifilter.label_hit(info),
+                    "creator_url": cand.get("creator_url") or info.get("channel_url")
+                    or info.get("uploader_url") or ""}
             # full info (tags, description, account) can show AI stuff the search didn't
             if meta["uploader"] and self.db.ai_blocked(cand["src"], meta["uploader"]):
                 self._ai(run, meta, f"account {meta['uploader']}", strikes=0)
@@ -873,15 +946,19 @@ class Engine:
                 thumb = thumbs_dir() / (hashlib.sha1(cand["key"].encode()).hexdigest()[:16] + ".jpg")
                 dest = None
                 cave = o["cave"]
+                gem = keep and self._is_gem(meta)
                 if keep:
                     self.tally["site_" + cand["src"]] = self.tally.get("site_" + cand["src"], 0) + 1
                     self.tally["kept"] += 1
-                    dest = cave / (f"{v['score']:02d}_{_safe(meta['title'])}_{_safe(cand['id'], 20)}"
-                                   f"{path.suffix}")
+                    self.tally["gems"] = self.tally.get("gems", 0) + int(gem)
+                    dest = cave / (f"{v['score']:02d}_{'GEM_' if gem else ''}{_safe(meta['title'])}_"
+                                   f"{_safe(cand['id'], 20)}{path.suffix}")
                     shutil.move(str(path), dest)
                     media.thumb(dest, thumb, dur)
                     self.progress["kept"] += 1
-                    self.log("keep", "good", score=v["score"], why=v["why"])
+                    self.log("keep_gem" if gem else "keep", "good", score=v["score"], why=v["why"])
+                    if o["gems"] and self.progress["kept"] < run.count:
+                        self._add_leads(run, cand, meta, o["gems_max"])
                 else:
                     self.tally["nope"] += 1
                     if self.cfg["keep_rejects"]:
@@ -896,7 +973,7 @@ class Engine:
                                   status="kept" if keep else "nope", score=v["score"],
                                   vibe=v["vibe"], why=v["why"], path=str(dest) if dest else None,
                                   thumb=str(thumb) if keep and thumb.exists() else None,
-                                  query=cand["query"], brain=brain.label)
+                                  query=cand["query"], brain=brain.label, gem=int(gem))
                 self.db.add_hashes(vid, item["hashes"])
                 if self.progress["kept"] >= run.count:
                     run.enough = True
@@ -959,6 +1036,8 @@ class Engine:
         if t["kept"]:
             self.log("sites_got", tt=t.get("site_tiktok", 0), ig=t.get("site_instagram", 0),
                      yt=t.get("site_youtube", 0))
+        if t.get("gems"):
+            self.log("gems_got", "good", g=t["gems"])
         if self.progress["kept"] >= self.progress["target"] or self.stop.is_set() or run.end:
             return                           # (gave up: the reason was already said)
         tt_ig = t.get("site_tiktok", 0) + t.get("site_instagram", 0)

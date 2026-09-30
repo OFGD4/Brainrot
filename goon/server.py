@@ -187,6 +187,7 @@ def create_app(cfg, db, engine, hw, updater):
             out.append({k: v[k] for k in ("id", "title", "uploader", "duration", "score",
                                           "vibe", "why", "url", "query", "brain", "created")}
                        | {"has_thumb": bool(v["thumb"] and Path(v["thumb"]).exists()),
+                          "gem": bool(v.get("gem")),
                           "site": (v["key"] or "web:").split(":")[0]})
         return jsonify(out)
 

@@ -211,6 +211,48 @@ def _abs(u):
     return TIKWM + u if u and u.startswith("/") else (u or "")
 
 
+def _tikwm_item(v):
+    """tikwm video -> our dict. None for photo slideshows (not videos)."""
+    vid = str(v.get("video_id") or v.get("id") or "")
+    if not vid or v.get("images"):
+        return None
+    user = ((v.get("author") or {}).get("unique_id") or "").strip()
+    mi = v.get("music_info") or {}
+    return {"id": vid, "url": f"https://www.tiktok.com/@{user or 'user'}/video/{vid}",
+            "title": v.get("title") or "", "duration": v.get("duration") or 0,
+            "author": user, "play": _abs(v.get("play") or v.get("wmplay")),
+            "music_id": str(mi.get("id") or ""), "music": mi.get("title") or "",
+            "ai_label": aifilter.label_hit(v)}
+
+
+def _tikwm_feed(path, params, n, max_pages=3):
+    """Page through a tikwm list (user posts / sound posts)."""
+    cursor, got = "0", 0
+    for _page in range(max_pages):
+        data = _tikwm_call(path, {**params, "count": 30, "cursor": cursor})
+        for v in data.get("videos") or []:
+            it = _tikwm_item(v)
+            if it:
+                got += 1
+                yield it
+                if got >= n:
+                    return
+        nxt = str(data.get("cursor") or "")
+        if not data.get("hasMore") or not nxt or nxt == cursor:
+            return
+        cursor = nxt
+
+
+def tikwm_user_posts(user: str, n: int = 15):
+    """A creator's newest videos (captions or not)."""
+    yield from _tikwm_feed("/api/user/posts", {"unique_id": user.lstrip("@")}, n)
+
+
+def tikwm_sound_posts(music_id: str, n: int = 20):
+    """Other videos using the same sound."""
+    yield from _tikwm_feed("/api/music/posts", {"music_id": music_id}, n)
+
+
 def tikwm_search(query: str, n: int = 30, on_wait=None):
     """Yield TikTok videos for these words: dicts with id, url, title, duration, author, play.
     tikwm resting (it said 403)? Raises TikwmResting at once; the caller tries other searches."""
@@ -228,14 +270,10 @@ def tikwm_search(query: str, n: int = 30, on_wait=None):
                     raise                    # the caller uses TikTok's own search meanwhile
                 waited = True
         for v in data.get("videos") or []:
-            vid = str(v.get("video_id") or v.get("id") or "")
-            user = ((v.get("author") or {}).get("unique_id") or "").strip()
-            if not vid:
+            it = _tikwm_item(v)
+            if not it:
                 continue
-            yield {"id": vid, "url": f"https://www.tiktok.com/@{user or 'user'}/video/{vid}",
-                   "title": v.get("title") or "", "duration": v.get("duration") or 0,
-                   "author": user, "play": _abs(v.get("play") or v.get("wmplay")),
-                   "ai_label": aifilter.label_hit(v)}
+            yield it
             got += 1
             if got >= n:
                 return
@@ -312,9 +350,13 @@ def tiktok_search(query: str, n: int = 30, cookie_path=None):
             user = ((it.get("author") or {}).get("uniqueId") or "").strip()
             if not vid:
                 continue
+            if it.get("imagePost"):
+                continue                               # photo slideshow, not a video
+            mu = it.get("music") or {}
             yield {"id": vid, "url": f"https://www.tiktok.com/@{user or 'user'}/video/{vid}",
                    "title": it.get("desc") or "", "duration": (it.get("video") or {}).get("duration") or 0,
                    "author": user, "play": "", "ai_label": aifilter.label_hit(it),
+                   "music_id": str(mu.get("id") or ""), "music": mu.get("title") or "",
                    "tags": [c.get("title") for c in (it.get("challenges") or []) if c.get("title")]}
             got += 1
             if got >= n:
@@ -345,12 +387,15 @@ def load_cookies(path, domain):
 def _ig_videos(obj, out, seen):
     """Walk any Instagram JSON and pick out video posts (reels)."""
     if isinstance(obj, dict):
-        code = obj.get("code")
+        code = obj.get("code") or obj.get("shortcode")
         is_video = obj.get("media_type") == 2 or obj.get("product_type") == "clips" or \
-            bool(obj.get("video_versions"))
+            bool(obj.get("video_versions")) or obj.get("is_video") is True
         if isinstance(code, str) and is_video and code not in seen:
             seen.add(code)
             cap = obj.get("caption") or {}
+            if not isinstance(cap, dict) or not cap:      # older style: edge_media_to_caption
+                edges = ((obj.get("edge_media_to_caption") or {}).get("edges") or [{}])
+                cap = {"text": ((edges[0] or {}).get("node") or {}).get("text", "")}
             out.append({"code": code, "url": f"https://www.instagram.com/reel/{code}/",
                         "title": (cap.get("text") if isinstance(cap, dict) else "") or "",
                         "duration": obj.get("video_duration") or 0,
@@ -361,6 +406,39 @@ def _ig_videos(obj, out, seen):
     elif isinstance(obj, list):
         for v in obj:
             _ig_videos(v, out, seen)
+
+
+def _ig_session(cookie_path):
+    jar = load_cookies(cookie_path, "instagram.com")
+    if not jar:
+        raise BlockedError("no instagram login in cookies.txt")
+    csrf = next((c.value for c in jar if c.name == "csrftoken" and "instagram" in c.domain), "")
+    return net.session(cookies=[c for c in jar if "instagram" in c.domain],
+                       headers={"X-IG-App-ID": IG_APP_ID, "X-Requested-With": "XMLHttpRequest",
+                                "X-CSRFToken": csrf, "Referer": "https://www.instagram.com/"})
+
+
+def instagram_user(username: str, cookie_path, n: int = 12) -> list[dict]:
+    """A creator's newest reels (captions or not). Needs the Instagram login in cookies.txt."""
+    s = _ig_session(cookie_path)
+    out, seen = [], set()
+    r = s.get(f"{IG}/api/v1/users/web_profile_info/", params={"username": username}, timeout=20)
+    if r.status_code != 200:
+        raise BlockedError(f"instagram said {r.status_code}")
+    d = r.json()
+    user = (d.get("data") or {}).get("user") or {}
+    if user.get("id"):
+        try:
+            r2 = s.post(f"{IG}/api/v1/clips/user/", timeout=20,
+                        data={"target_user_id": user["id"], "page_size": n, "include_feed_video": "true"})
+            if r2.status_code == 200:
+                _ig_videos(r2.json(), out, seen)
+        except Exception:
+            pass
+    _ig_videos(user, out, seen)                    # the profile page itself lists recent posts
+    for v in out:
+        v["author"] = v["author"] or username
+    return out[:n]
 
 
 def instagram_api(query: str, cookie_path, n: int = 30) -> list[dict]:

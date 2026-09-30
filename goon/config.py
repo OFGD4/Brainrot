@@ -21,6 +21,9 @@ DEFAULTS = {
     "lang": "caveman",          # caveman | illsonois | olde
     "sources": "youtube,tiktok,instagram",  # (old setting, kept for compatibility)
     "chill_cpu": True,          # go easy on the PC: low priority, fewer threads, lighter ear mode
+    "gems": True,               # hidden gems: dig creators + same sounds of good rot (no-caption vids)
+    # saved captions: one per line, ALWAYS searched too, on top of whatever words are typed
+    "always_search": "今晚,V走进人群,欣赏了Vogue World: Hollywood 的现场表演。以独特时尚造型而闻名的他,这次依旧保持一贯的高级感,以一身宛如 T台造型般的时尚穿搭,展现出 effortless 的魅力。",
     "source_mode": "first",     # only = TikTok+Insta only | first = TikTok+Insta, YouTube backup | mix
     "skip_version": "",         # update the user said "skip" to
     "last_version": "",         # to say "me updated!" once after an update
@@ -78,6 +81,8 @@ class Config:
             if self.data["lang"] not in LANG_CODES:
                 self.data["lang"] = "caveman"
             self.data["max_secs"] = max(5, min(1800, self.data["max_secs"]))
+            pins = [l.strip() for l in str(self.data["always_search"]).splitlines() if l.strip()]
+            self.data["always_search"] = "\n".join(dict.fromkeys(pins))[:4000]
             if not self.data["cave_dir"]:
                 self.data["cave_dir"] = str(default_cave())
             self.save()

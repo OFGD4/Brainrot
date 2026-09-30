@@ -36,6 +36,9 @@ class DB:
         self.con = sqlite3.connect(self.path, check_same_thread=False)
         self.con.row_factory = sqlite3.Row
         self.con.executescript(SCHEMA)
+        cols = {r[1] for r in self.con.execute("PRAGMA table_info(vids)")}
+        if "gem" not in cols:          # older database: add the hidden-gem mark
+            self.con.execute("ALTER TABLE vids ADD COLUMN gem INTEGER DEFAULT 0")
         self.con.commit()
         self._hash_cache = None  # (vid ids array, hashes array)
         self._blocked = {r[0] for r in self.con.execute(

@@ -241,8 +241,8 @@ function showHw(h) {
 
 // --------------------------------------------------------------- config --
 const FIELDS = ["ollama_model", "gemini_model", "threshold", "max_secs", "cookies_browser",
-  "whisper_size", "taste", "cave_dir"];
-const CHECKS = ["ear_mode", "keep_rejects", "chill_cpu"];
+  "whisper_size", "taste", "cave_dir", "always_search"];
+const CHECKS = ["ear_mode", "keep_rejects", "chill_cpu", "gems"];
 
 function fillConfig(c) {
   FIELDS.forEach((k) => { if ($(k)) $(k).value = c[k] ?? ""; });
@@ -253,7 +253,12 @@ function fillConfig(c) {
   $("gemini_key").placeholder = c.gemini_key_set ? t("key_saved_ph", { hint: c.gemini_key_hint }) : t("key_ph");
   showThreshold(c.threshold);
   showPlaceGroups();
+  showPins();
 }
+function pinCount() { return $("always_search").value.split("\n").filter((l) => l.trim()).length; }
+function showPins() { $("pinToggle").textContent = t("pin_toggle", { n: pinCount() }); }
+$("always_search").oninput = showPins;
+$("always_search").onchange = async () => { cfg = await api("/api/config", { always_search: $("always_search").value }); showPins(); };
 function showThreshold(v) { $("thLabel").innerHTML = t("th_label_html", { v: esc(v) }); }
 
 function showPlaceGroups() {
@@ -403,7 +408,7 @@ async function go() {
   const query = $("query").value.trim();
   const links = $("links").value.trim();
   const count = parseInt($("count").value, 10) || 10;
-  if (!query && !links) { addLocal(t("msg_no_input"), "bad"); $("query").focus(); return; }
+  if (!query && !links && !pinCount()) { addLocal(t("msg_no_input"), "bad"); $("query").focus(); return; }
   try { localStorage.setItem("goon.query", query); localStorage.setItem("goon.count", count); } catch (e) {}
   await api("/api/config", readConfig());
   const r = await api("/api/start", { query, links, count });
@@ -496,6 +501,7 @@ function addLine(text, kind, tm) {
   if (nearBottom) log.scrollTop = log.scrollHeight;
 }
 const addLocal = (text, kind) => addLine(text, kind);
+$("gems").onchange = async () => { cfg = await api("/api/config", { gems: $("gems").checked }); };
 
 // ----------------------------------------------------------------- cave --
 async function loadVids() {
@@ -512,6 +518,7 @@ function renderVids() {
       <div class="thumb" data-act="doom">
         ${v.has_thumb ? `<img loading="lazy" src="/vid/${v.id}/thumb" alt="">` : `<div class="noimg">🧠</div>`}
         <span class="lvl l${v.score}">${esc(t("lvl", { s: v.score }))}</span>
+        ${v.gem ? `<span class="gem" title="${esc(t("gem_title"))}">${esc(t("gem_badge"))}</span>` : ""}
         <span class="site site-${esc(v.site)}">${esc({ tiktok: "TikTok", instagram: "Insta", youtube: "YouTube" }[v.site] || v.site)}</span>
         <span class="play">▶</span>
       </div>
